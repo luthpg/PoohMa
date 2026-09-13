@@ -92,9 +92,13 @@ function UsagePage() {
 
           {/* ─── メイン大型タブ切替（基本ガイド / 応用Tips） ─── */}
           <div className="mt-8 max-w-md mx-auto">
-            <div className="grid grid-cols-2 p-1.5 rounded-2xl bg-muted/80 border border-border shadow-xs">
+            <fieldset
+              aria-label="ガイド表示の切り替え"
+              className="grid grid-cols-2 p-1.5 rounded-2xl bg-muted/80 border border-border shadow-xs"
+            >
               <button
                 type="button"
+                aria-pressed={mainTab === "basic"}
                 onClick={() => setMainTab("basic")}
                 className={`py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                   mainTab === "basic"
@@ -110,6 +114,7 @@ function UsagePage() {
               </button>
               <button
                 type="button"
+                aria-pressed={mainTab === "tips"}
                 onClick={() => setMainTab("tips")}
                 className={`py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                   mainTab === "tips"
@@ -123,7 +128,7 @@ function UsagePage() {
                   (応用編)
                 </span>
               </button>
-            </div>
+            </fieldset>
           </div>
         </div>
       </section>
@@ -1136,6 +1141,7 @@ function HintDecryptDemo() {
   const [typedCount, setTypedCount] = useState(0);
   const [copiedId, setCopiedId] = useState(false);
   const [copiedHint, setCopiedHint] = useState(false);
+  const [copyError, setCopyError] = useState<"id" | "hint" | null>(null);
   const maxChars = 8;
   const timerRefs = useRef<NodeJS.Timeout[]>([]);
 
@@ -1281,14 +1287,27 @@ function HintDecryptDemo() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText("kazoku@example.com");
-                    setCopiedId(true);
-                    setTimeout(() => setCopiedId(false), 1500);
+                  onClick={async () => {
+                    setCopyError(null);
+                    try {
+                      if (!navigator.clipboard) {
+                        throw new Error("Clipboard API is unavailable");
+                      }
+                      await navigator.clipboard.writeText("kazoku@example.com");
+                      setCopiedId(true);
+                      setTimeout(() => setCopiedId(false), 1500);
+                    } catch {
+                      setCopiedId(false);
+                      setCopyError("id");
+                    }
                   }}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  {copiedId ? (
+                  {copyError === "id" ? (
+                    <span className="text-destructive font-medium">
+                      コピー失敗
+                    </span>
+                  ) : copiedId ? (
                     <>
                       <Check className="h-3 w-3 text-emerald-500" />
                       <span className="text-emerald-500 font-medium">
@@ -1314,16 +1333,29 @@ function HintDecryptDemo() {
                 {demoStatus === "unlocked" && (
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(
-                        "実家の愛犬の名前＋母の誕生月",
-                      );
-                      setCopiedHint(true);
-                      setTimeout(() => setCopiedHint(false), 1500);
+                    onClick={async () => {
+                      setCopyError(null);
+                      try {
+                        if (!navigator.clipboard) {
+                          throw new Error("Clipboard API is unavailable");
+                        }
+                        await navigator.clipboard.writeText(
+                          "実家の愛犬の名前＋母の誕生月",
+                        );
+                        setCopiedHint(true);
+                        setTimeout(() => setCopiedHint(false), 1500);
+                      } catch {
+                        setCopiedHint(false);
+                        setCopyError("hint");
+                      }
                     }}
                     className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
                   >
-                    {copiedHint ? (
+                    {copyError === "hint" ? (
+                      <span className="text-destructive font-medium">
+                        コピー失敗
+                      </span>
+                    ) : copiedHint ? (
                       <>
                         <Check className="h-3 w-3 text-emerald-500" />
                         <span className="text-emerald-500 font-medium">
@@ -1471,11 +1503,13 @@ function HintDecryptDemo() {
       <div className="rounded-xl bg-muted/40 p-3.5 text-xs text-muted-foreground space-y-1 leading-relaxed border border-border/50">
         <p className="font-semibold text-foreground flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-          <span>一度パスコードを入力すれば、画面を閉じるまで有効</span>
+          <span>
+            一度パスコードを入力すれば、設定した無操作時間が経過するか、画面を閉じるまで有効
+          </span>
         </p>
         <p className="text-[11px] sm:text-xs">
           <JpText>
-            実際のアプリでは、一度パスコードで解除すると一定時間（または画面を閉じるまで）すべてのヒントを閲覧できます。スマホの指紋認証・Face
+            実際のアプリでは、一度パスコードで解除すると、設定した無操作時間が経過するか画面を閉じるまで、すべてのヒントを閲覧できます。スマホの指紋認証・Face
             IDと連携すれば、ワンタッチで解除することも可能です。
           </JpText>
         </p>
