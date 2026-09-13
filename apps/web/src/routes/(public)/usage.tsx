@@ -33,6 +33,12 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import { Spinner } from "@/components/ui/spinner";
 
 export const Route = createFileRoute("/(public)/usage")({
@@ -42,25 +48,88 @@ export const Route = createFileRoute("/(public)/usage")({
 function UsagePage() {
   const { isAuthenticated } = useAuth();
   const [mainTab, setMainTab] = useState<"basic" | "tips">("basic");
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [pendingTipTarget, setPendingTipTarget] = useState<
     "tip-role" | "tip-csv" | null
   >(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
   const [familyFlowTab, setFamilyFlowTab] = useState<"creator" | "joiner">(
     "creator",
   );
 
+  // カルーセルのスワイプ・ドラッグ切り替え時に mainTab を更新
   useEffect(() => {
-    if (mainTab !== "tips" || !pendingTipTarget) return;
+    if (!carouselApi) return;
 
-    const element = document.getElementById(pendingTipTarget);
-    if (!element) return;
+    const onSelect = () => {
+      const selectedIndex = carouselApi.selectedScrollSnap();
+      const nextTab = selectedIndex === 0 ? "basic" : "tips";
+      setMainTab((prev) => (prev === nextTab ? prev : nextTab));
+    };
 
-    element.scrollIntoView({ behavior: "smooth", block: "start" });
-    setPendingTipTarget(null);
-  }, [mainTab, pendingTipTarget]);
+    carouselApi.on("select", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
+
+  // タブボタンクリック時のハンドラー（カルーセルをスムーズにスクロール）
+  const handleTabChange = (tab: "basic" | "tips") => {
+    setMainTab(tab);
+    if (!carouselApi) return;
+    const targetIndex = tab === "basic" ? 0 : 1;
+    if (carouselApi.selectedScrollSnap() !== targetIndex) {
+      carouselApi.scrollTo(targetIndex);
+    }
+  };
+
+  // カルーセルの settle イベントを監視し、スライド遷移完了後に対象 Tip へスクロール
+  useEffect(() => {
+    if (!carouselApi || !pendingTipTarget) return;
+
+    const scrollToTarget = () => {
+      // Tips タブ（index=1）でない場合は無視
+      if (carouselApi.selectedScrollSnap() !== 1) return;
+
+      const element = document.getElementById(pendingTipTarget);
+      if (!element) return;
+
+      // rAF を挟んでレイアウト確定後にスクロール実行
+      // ※ scrollIntoView は Safari iOS で overflow:hidden 祖先コンテナも
+      //    横スクロールさせてしまうため、window.scrollTo で縦方向のみ移動する
+      requestAnimationFrame(() => {
+        const rect = element.getBoundingClientRect();
+        // 固定ヘッダー (64px) + sticky タブバーの高さ + 視認性のための余白 (16px) を加味
+        const headerHeight = 64;
+        const tabBarHeight = tabBarRef.current?.offsetHeight ?? 72;
+        const buffer = 16;
+        const totalOffset = headerHeight + tabBarHeight + buffer;
+        const top = window.scrollY + rect.top - totalOffset;
+        window.scrollTo({ top, behavior: "smooth" });
+        setPendingTipTarget(null);
+      });
+    };
+
+    // 既に Tips スライドに居る場合は即座に実行
+    if (carouselApi.selectedScrollSnap() === 1) {
+      scrollToTarget();
+      return;
+    }
+
+    // スライドアニメーション完了時に一度だけ発火
+    const onSettle = () => {
+      scrollToTarget();
+      carouselApi.off("settle", onSettle);
+    };
+    carouselApi.on("settle", onSettle);
+
+    return () => {
+      carouselApi.off("settle", onSettle);
+    };
+  }, [carouselApi, pendingTipTarget]);
 
   return (
-    <div className="flex flex-col w-full overflow-x-hidden">
+    <div className="flex flex-col w-full overflow-x-clip">
       {/* ─── ① ヒーローセクション ─── */}
       <section className="border-b border-border/60 bg-gradient-to-b from-background via-muted/20 to-background py-10 sm:py-16 md:py-20">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 text-center">
@@ -89,9 +158,17 @@ function UsagePage() {
               PoohMa（プーマ）は、実際のパスワードを1文字もサーバーに預けません。ご家族だけに伝わる「ヒント」で安全に共有するアカウント管理帳です。
             </JpText>
           </p>
+        </div>
+      </section>
 
-          {/* ─── メイン大型タブ切替（基本ガイド / 応用Tips） ─── */}
-          <div className="mt-8 max-w-md mx-auto">
+      {/* ─── ② ガイドタブ＆コンテンツエリア（タブエリア内のみ固定） ─── */}
+      <div className="relative w-full">
+        {/* スクロール連動 sticky タブバー */}
+        <div
+          ref={tabBarRef}
+          className="sticky top-16 z-40 w-full bg-background/85 backdrop-blur-md border-b border-border/60 py-3 shadow-xs"
+        >
+          <div className="mx-auto max-w-md px-4">
             <fieldset
               aria-label="ガイド表示の切り替え"
               className="grid grid-cols-2 p-1.5 rounded-2xl bg-muted/80 border border-border shadow-xs"
@@ -99,8 +176,8 @@ function UsagePage() {
               <button
                 type="button"
                 aria-pressed={mainTab === "basic"}
-                onClick={() => setMainTab("basic")}
-                className={`py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                onClick={() => handleTabChange("basic")}
+                className={`py-2.5 sm:py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   mainTab === "basic"
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -108,15 +185,12 @@ function UsagePage() {
               >
                 <UserPlus className="h-4 w-4 text-orange-500 shrink-0" />
                 <span className="truncate">基本の使い方</span>
-                <span className="hidden sm:inline text-[11px] font-normal text-muted-foreground">
-                  (まずここから)
-                </span>
               </button>
               <button
                 type="button"
                 aria-pressed={mainTab === "tips"}
-                onClick={() => setMainTab("tips")}
-                className={`py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                onClick={() => handleTabChange("tips")}
+                className={`py-2.5 sm:py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   mainTab === "tips"
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -124,714 +198,733 @@ function UsagePage() {
               >
                 <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
                 <span className="truncate">便利な機能・Tips</span>
-                <span className="hidden sm:inline text-[11px] font-normal text-muted-foreground">
-                  (応用編)
-                </span>
               </button>
             </fieldset>
           </div>
         </div>
-      </section>
 
-      {/* ─── ② メインコンテンツエリア（タブ切り替え） ─── */}
-      <div className="mx-auto max-w-[1200px] w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        {mainTab === "basic" ? (
-          /* ──────────────────────────────────────────────────────────
-             【基本の使い方タブ】初読者向け：これだけ覚えればOKの3ステップ
-             ────────────────────────────────────────────────────────── */
-          <div className="space-y-12 sm:space-y-16">
-            <div className="text-center max-w-2xl mx-auto">
-              <Badge
-                variant="outline"
-                className="mb-2 text-xs font-semibold tracking-wider text-orange-500 border-orange-500/30 bg-orange-500/5"
-              >
-                SIMPLE 3 STEPS
-              </Badge>
-              <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
-                <JpText>これだけ覚えればOK！基本の3ステップ</JpText>
-              </h2>
-              <p className="mt-2 text-sm sm:text-base text-muted-foreground whitespace-pre-wrap">
-                <JpText>
-                  初期設定はわずか2分。普段の利用は「ヒントを見てログイン」するだけの簡単設計です。
-                </JpText>
-              </p>
-            </div>
-
-            {/* 3つのステップカード */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-              {/* STEP 1 */}
-              <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white font-bold text-sm shadow-xs">
-                    1
-                  </div>
-                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                    所要時間 1分
-                  </span>
-                </div>
-
-                <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
-                  <JpText>家族グループを作る・参加する</JpText>
-                </h3>
-
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
-                  <JpText>
-                    Googleアカウントでログイン後、家族グループを「新しく作る」か「招待されて参加する」かを選びます。
-                  </JpText>
-                </p>
-
-                {/* 作る人 / 参加する人 切替タブ */}
-                <div className="rounded-xl border border-border/80 bg-muted/40 p-1 mb-4 flex">
-                  <button
-                    type="button"
-                    onClick={() => setFamilyFlowTab("creator")}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                      familyFlowTab === "creator"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    家族を作る人
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFamilyFlowTab("joiner")}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                      familyFlowTab === "joiner"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    招待される人
-                  </button>
-                </div>
-
-                {/* 切替解説 ＆ ビジュアルモック */}
-                <div className="rounded-xl bg-muted/30 border border-border/60 p-4 text-xs sm:text-sm text-muted-foreground space-y-3 mb-4 flex-1">
-                  {familyFlowTab === "creator" ? (
-                    <>
-                      <div className="space-y-1">
-                        <p className="font-bold text-foreground text-sm">
-                          <JpText>① 家族名と「パスコード」を決める</JpText>
-                        </p>
-                        <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
-                          <JpText>
-                            お好きな家族名と、忘れない家族共通のパスコードを決めるだけ。招待リンクやQRコードを発行してご家族に送りましょう。
-                          </JpText>
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-background border border-border p-3 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-medium text-foreground">
-                          <span className="flex items-center gap-1.5 font-bold">
-                            <QrCode className="h-4 w-4 text-orange-500" />
-                            招待リンク・QR発行
-                          </span>
-                          <span className="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-medium">
-                            LINE等で共有可
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between bg-muted/50 rounded px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate">
-                          <span>poohma.app/invite/...</span>
-                          <Share2 className="h-3.5 w-3.5 text-foreground shrink-0 ml-2" />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-1">
-                        <p className="font-bold text-foreground text-sm">
-                          <JpText>① 届いたリンクを開いて参加申請</JpText>
-                        </p>
-                        <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
-                          <JpText>
-                            招待リンクを開いて「参加申請」を押すだけ。管理者がワンタップで「承認」すればすぐにグループに合流できます。
-                          </JpText>
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-background border border-border p-3 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-foreground">
-                            参加申請中: お母さん
-                          </span>
-                          <span className="text-[11px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded font-semibold">
-                            承認待ち
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          管理者が画面上で「承認」を押すと参加完了！
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="pt-3 border-t border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingTipTarget("tip-role");
-                      setMainTab("tips");
-                    }}
-                    className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
-                  >
-                    <span>💡 ご家族の誤操作を防ぐ「見るだけ権限」とは？</span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-                  </button>
-                </div>
-              </div>
-
-              {/* STEP 2 */}
-              <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-white font-bold text-sm shadow-xs">
-                    2
-                  </div>
-                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                    所要時間 1分
-                  </span>
-                </div>
-
-                <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
-                  <JpText>サービスと「ヒント」を登録する</JpText>
-                </h3>
-
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
-                  <JpText>
-                    NetflixやWi-Fiなど、共有したいアカウントを登録します。本物のパスワードは預からず、家族に伝わる「ヒント」を入力します。
-                  </JpText>
-                </p>
-
-                {/* UIプレビュー風カード */}
-                <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3 mb-4 flex-1">
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground font-medium">
-                      WebサイトのURLを入力:
-                    </span>
-                    <div className="font-mono text-xs text-foreground font-medium bg-background px-3 py-1.5 rounded-lg border border-border">
-                      netflix.com
-                    </div>
+        {/* ─── ② メインコンテンツエリア（タブ切り替えカルーセル） ─── */}
+        <div className="mx-auto max-w-[1200px] w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+          <Carousel
+            setApi={setCarouselApi}
+            opts={{
+              watchDrag: true,
+              duration: 25,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-0 items-start">
+              <CarouselItem className="pl-0 basis-full min-w-full">
+                {/* ──────────────────────────────────────────────────────────
+                 【基本の使い方タブ】初読者向け：これだけ覚えればOKの3ステップ
+                 ────────────────────────────────────────────────────────── */}
+                <div className="space-y-12 sm:space-y-16">
+                  <div className="text-center max-w-2xl mx-auto">
+                    <Badge
+                      variant="outline"
+                      className="mb-2 text-xs font-semibold tracking-wider text-orange-500 border-orange-500/30 bg-orange-500/5"
+                    >
+                      SIMPLE 3 STEPS
+                    </Badge>
+                    <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
+                      <JpText>これだけ覚えればOK！基本の3ステップ</JpText>
+                    </h2>
+                    <p className="mt-2 text-sm sm:text-base text-muted-foreground whitespace-pre-wrap">
+                      <JpText>
+                        初期設定はわずか2分。普段の利用は「ヒントを見てログイン」するだけの簡単設計です。
+                      </JpText>
+                    </p>
                   </div>
 
-                  {/* 自動セットプレビュー */}
-                  <div className="rounded-lg bg-background border border-border p-3 space-y-2 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-md bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xs">
-                          N
+                  {/* 3つのステップカード */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+                    {/* STEP 1 */}
+                    <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white font-bold text-sm shadow-xs">
+                          1
                         </div>
-                        <span className="font-bold text-xs sm:text-sm text-foreground">
-                          Netflix（ネットフリックス）
+                        <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                          所要時間 1分
                         </span>
                       </div>
-                      <span className="text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-medium">
-                        家族共有
-                      </span>
-                    </div>
 
-                    <div className="bg-muted/50 rounded-md p-2.5 text-xs space-y-1">
-                      <p className="text-muted-foreground font-mono">
-                        ログインID: kazoku@example.com
+                      <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
+                        <JpText>家族グループを作る・参加する</JpText>
+                      </h3>
+
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
+                        <JpText>
+                          Googleアカウントでログイン後、家族グループを「新しく作る」か「招待されて参加する」かを選びます。
+                        </JpText>
                       </p>
-                      <p className="text-foreground font-semibold">
-                        ヒント: 実家の愛犬の名前＋母の誕生月
+
+                      {/* 作る人 / 参加する人 切替タブ */}
+                      <div className="rounded-xl border border-border/80 bg-muted/40 p-1 mb-4 flex">
+                        <button
+                          type="button"
+                          onClick={() => setFamilyFlowTab("creator")}
+                          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                            familyFlowTab === "creator"
+                              ? "bg-background text-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          家族を作る人
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFamilyFlowTab("joiner")}
+                          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                            familyFlowTab === "joiner"
+                              ? "bg-background text-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          招待される人
+                        </button>
+                      </div>
+
+                      {/* 切替解説 ＆ ビジュアルモック */}
+                      <div className="rounded-xl bg-muted/30 border border-border/60 p-4 text-xs sm:text-sm text-muted-foreground space-y-3 mb-4 flex-1">
+                        {familyFlowTab === "creator" ? (
+                          <>
+                            <div className="space-y-1">
+                              <p className="font-bold text-foreground text-sm">
+                                <JpText>
+                                  ① 家族名と「パスコード」を決める
+                                </JpText>
+                              </p>
+                              <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                                <JpText>
+                                  お好きな家族名と、忘れない家族共通のパスコードを決めるだけ。招待リンクやQRコードを発行してご家族に送りましょう。
+                                </JpText>
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg bg-background border border-border p-3 space-y-2">
+                              <div className="flex items-center justify-between text-xs font-medium text-foreground">
+                                <span className="flex items-center gap-1.5 font-bold">
+                                  <QrCode className="h-4 w-4 text-orange-500" />
+                                  招待リンク・QR発行
+                                </span>
+                                <span className="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-medium">
+                                  LINE等で共有可
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between bg-muted/50 rounded px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate">
+                                <span>poohma.app/invite/...</span>
+                                <Share2 className="h-3.5 w-3.5 text-foreground shrink-0 ml-2" />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-1">
+                              <p className="font-bold text-foreground text-sm">
+                                <JpText>
+                                  ① 届いたリンクやQRコードで参加申請
+                                </JpText>
+                              </p>
+                              <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                                <JpText>
+                                  招待リンクを開いたり、QRコードを読み込んで、「参加申請」を押すだけ。管理者がワンタップで「承認」すればすぐにグループに合流できます。
+                                </JpText>
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg bg-background border border-border p-3 space-y-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-bold text-foreground">
+                                  参加申請中: お母さん
+                                </span>
+                                <span className="text-[11px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded font-semibold">
+                                  承認待ち
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                管理者が画面上で「承認」を押すと参加完了！
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-border/60">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingTipTarget("tip-role");
+                            handleTabChange("tips");
+                          }}
+                          className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
+                        >
+                          <span>
+                            💡 共有レコードの誤操作を防ぐ「一般権限」とは？
+                          </span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* STEP 2 */}
+                    <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-white font-bold text-sm shadow-xs">
+                          2
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                          所要時間 1分
+                        </span>
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
+                        <JpText>サービスと「ヒント」を登録する</JpText>
+                      </h3>
+
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
+                        <JpText>
+                          NetflixやWi-Fiなど、共有したいアカウントを登録します。本物のパスワードは預からず、家族に伝わる「ヒント」を入力します。
+                        </JpText>
                       </p>
-                    </div>
-                  </div>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    <JpText>
-                      ※URLを入れるだけで、サービス名や画像、五十音用のふりがなが自動でセットされます。
-                    </JpText>
-                  </p>
-                </div>
+                      {/* UIプレビュー風カード */}
+                      <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3 mb-4 flex-1">
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground font-medium">
+                            WebサイトのURLを入力:
+                          </span>
+                          <div className="font-mono text-xs text-foreground font-medium bg-background px-3 py-1.5 rounded-lg border border-border">
+                            netflix.com
+                          </div>
+                        </div>
 
-                <div className="pt-3 border-t border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingTipTarget("tip-csv");
-                      setMainTab("tips");
-                    }}
-                    className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
-                  >
-                    <span>💡 CSVやExcel・メモ帳からの一括取り込み</span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-                  </button>
-                </div>
-              </div>
+                        {/* 自動セットプレビュー */}
+                        <div className="rounded-lg bg-background border border-border p-3 space-y-2 shadow-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-md bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xs">
+                                N
+                              </div>
+                              <span className="font-bold text-xs sm:text-sm text-foreground">
+                                Netflix（ネットフリックス）
+                              </span>
+                            </div>
+                            <span className="text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-medium">
+                              家族共有
+                            </span>
+                          </div>
 
-              {/* STEP 3 */}
-              <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-xs">
-                    3
-                  </div>
-                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                    日常の操作
-                  </span>
-                </div>
+                          <div className="bg-muted/50 rounded-md p-2.5 text-xs space-y-1">
+                            <p className="text-muted-foreground font-mono">
+                              ログインID: kazoku@example.com
+                            </p>
+                            <p className="text-foreground font-semibold">
+                              ヒント: 実家の愛犬の名前＋母の誕生月
+                            </p>
+                          </div>
+                        </div>
 
-                <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
-                  <JpText>ヒントを見てログインする</JpText>
-                </h3>
-
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
-                  <JpText>
-                    普段の使い方はこれだけ！スマートフォンの指紋・顔認証でワンタップ解除し、ログインIDをコピーして使います。
-                  </JpText>
-                </p>
-
-                {/* 3コマ操作フローの図解 */}
-                <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 space-y-3 mb-4 flex-1">
-                  <div className="text-xs font-bold text-foreground pb-1 border-b border-border/60 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-                    簡単3ステップのログイン手順
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    {/* コマ 1 */}
-                    <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
-                        1
-                      </span>
-                      <div>
-                        <p className="font-bold text-foreground">
-                          PoohMaでログインIDをコピー
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          <JpText>
+                            ※URLを入れるだけで、サービス名や画像、五十音用のふりがなが自動でセットされます。
+                          </JpText>
                         </p>
-                        <p className="text-muted-foreground text-[11px] leading-relaxed">
-                          指紋・顔認証でサッと開き、1タップでIDをコピー。ヒントを見てパスワードを思い出します。
-                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-border/60">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingTipTarget("tip-csv");
+                            handleTabChange("tips");
+                          }}
+                          className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
+                        >
+                          <span>💡 CSVファイルで一括取り込み</span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* コマ 2 */}
-                    <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
-                        2
-                      </span>
-                      <div>
-                        <p className="font-bold text-foreground">
-                          使いたいアプリやサイトを開く
-                        </p>
-                        <p className="text-muted-foreground text-[11px] leading-relaxed">
-                          Netflix等のログイン画面へそのまま移動します。
-                        </p>
+                    {/* STEP 3 */}
+                    <div className="relative flex flex-col rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 shadow-xs">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-xs">
+                          3
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                          日常の操作
+                        </span>
                       </div>
-                    </div>
 
-                    {/* コマ 3 */}
-                    <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
-                        3
-                      </span>
-                      <div>
-                        <p className="font-bold text-foreground">
-                          IDを貼り付け・パスワード入力
-                        </p>
-                        <p className="text-muted-foreground text-[11px] leading-relaxed">
-                          コピーしたIDを貼り付け、思い出したパスワードを入力してログイン完了！
-                        </p>
+                      <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
+                        <JpText>ヒントを見てログインする</JpText>
+                      </h3>
+
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
+                        <JpText>
+                          普段の使い方はこれだけ！スマートフォンの指紋・顔認証でワンタップ解除し、ログインIDをコピーして使います。
+                        </JpText>
+                      </p>
+
+                      {/* 3コマ操作フローの図解 */}
+                      <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 space-y-3 mb-4 flex-1">
+                        <div className="text-xs font-bold text-foreground pb-1 border-b border-border/60 flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+                          簡単3ステップのログイン手順
+                        </div>
+
+                        <div className="space-y-2.5 text-xs">
+                          {/* コマ 1 */}
+                          <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
+                              1
+                            </span>
+                            <div>
+                              <p className="font-bold text-foreground">
+                                PoohMaでログインIDをコピー
+                              </p>
+                              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                                指紋・顔認証でサッと開き、1タップでIDをコピー。ヒントを見てパスワードを思い出します。
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* コマ 2 */}
+                          <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
+                              2
+                            </span>
+                            <div>
+                              <p className="font-bold text-foreground">
+                                使いたいアプリやサイトを開く
+                              </p>
+                              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                                Netflix等のログイン画面へそのまま移動します。
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* コマ 3 */}
+                          <div className="rounded-lg bg-background border border-border p-2.5 flex items-start gap-2.5">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
+                              3
+                            </span>
+                            <div>
+                              <p className="font-bold text-foreground">
+                                IDを貼り付け・パスワード入力
+                              </p>
+                              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                                コピーしたIDを貼り付け、思い出したパスワードを入力してログイン完了！
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-border/60">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Lock className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          <span>画面を閉じると自動で鍵がかかる安全設計</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="pt-3 border-t border-border/60">
-                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Lock className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    <span>画面を閉じると自動で鍵がかかる安全設計</span>
-                  </div>
+                  {/* 家族パスコードによるヒント復号（ロック解除）体験デモエリア */}
+                  <HintDecryptDemo />
                 </div>
-              </div>
-            </div>
+              </CarouselItem>
 
-            {/* 家族パスコードによるヒント復号（ロック解除）体験デモエリア */}
-            <HintDecryptDemo />
-          </div>
-        ) : (
-          /* ──────────────────────────────────────────────────────────
+              <CarouselItem className="pl-0 basis-full min-w-full">
+                {/* ──────────────────────────────────────────────────────────
              【便利な機能・Tipsタブ】応用編：使いこなすための安心・便利機能
-             ────────────────────────────────────────────────────────── */
-          <div className="space-y-10">
-            <div className="text-center max-w-2xl mx-auto">
-              <Badge
-                variant="outline"
-                className="mb-2 text-xs font-semibold tracking-wider text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/5"
-              >
-                PRO TIPS & ADVANCED
-              </Badge>
-              <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
-                <JpText>もっと便利に使いこなす Tips（応用編）</JpText>
-              </h2>
-              <p className="mt-2 text-sm sm:text-base text-muted-foreground whitespace-pre-wrap">
-                <JpText>
-                  慣れてきたら知っておきたい、家族運用の安心設定や便利な機能をまとめました。
-                </JpText>
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {/* Tip 1: サブスク・Wi-Fiの家族共有 */}
-              <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-600 dark:text-orange-400">
-                      <Users className="h-4 w-4" />
-                      活用シーン 01
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                      <JpText>サブスクや自宅Wi-Fiを家族みんなで共有する</JpText>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+             ────────────────────────────────────────────────────────── */}
+                <div className="space-y-10">
+                  <div className="text-center max-w-2xl mx-auto">
+                    <Badge
+                      variant="outline"
+                      className="mb-2 text-xs font-semibold tracking-wider text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/5"
+                    >
+                      PRO TIPS & ADVANCED
+                    </Badge>
+                    <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
+                      <JpText>もっと便利に使いこなす Tips（応用編）</JpText>
+                    </h2>
+                    <p className="mt-2 text-sm sm:text-base text-muted-foreground whitespace-pre-wrap">
                       <JpText>
-                        動画配信サービスや音楽配信、自宅のWi-Fiルーター設定など、家族全員が使うアカウントを「家族共有」で登録しておけば、誰かがパスワードを変えてもヒントを更新するだけで家族全員に一瞬で同期されます。
+                        慣れてきたら知っておきたい、家族運用の安心設定や便利な機能をまとめました。
                       </JpText>
                     </p>
-                    <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          同時編集検知により、家族同士の上書き事故をリアルタイムで防止
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          1つのサービスにプロファイル別など最大10件のアカウントを登録可能
-                        </span>
-                      </li>
-                    </ul>
                   </div>
 
-                  {/* UIモック */}
-                  <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <span className="text-xs font-bold text-foreground">
-                        家族共有の登録例
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        リアルタイム同期中
-                      </Badge>
-                    </div>
-                    <div className="rounded-lg bg-background border border-border p-3.5 space-y-2 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-foreground">
-                          自宅 Wi-Fi ルーター
-                        </span>
-                        <span className="text-xs bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-semibold">
-                          家族共有
-                        </span>
-                      </div>
-                      <div className="bg-muted/50 rounded p-2.5 text-xs space-y-1">
-                        <p className="text-muted-foreground">
-                          SSID: Home_WiFi_5G
-                        </p>
-                        <p className="text-foreground font-semibold">
-                          ヒント: 冷蔵庫のマグネット番号＋愛猫の誕生日
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tip 2: 自分専用の秘密メモ */}
-              <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
-                      <Lock className="h-4 w-4" />
-                      活用シーン 02
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                      <JpText>
-                        家族に見られたくない「自分専用の秘密メモ」
-                      </JpText>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      <JpText>
-                        家族グループに所属していても、登録時に所有設定を「自分のみ（個人用）」にするだけで、家族のメンバーであっても一覧にすら表示されません。完全に独立したプライベートなアカウント帳として安全に併用できます。
-                      </JpText>
-                    </p>
-                    <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          高度なセキュリティで保護され、あなた以外は閲覧不能
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          あとからいつでもワンタップで「家族共有」に変更可能
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* UIモック */}
-                  <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <span className="text-xs font-bold text-foreground">
-                        公開範囲の切り替え
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ワンタップ切替
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="rounded-lg border border-border bg-background p-3 text-center opacity-60">
-                        <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground font-medium">
-                          家族共有
-                        </span>
-                      </div>
-                      <div className="rounded-lg border-2 border-blue-500 bg-blue-500/5 p-3 text-center shadow-xs">
-                        <Lock className="h-5 w-5 mx-auto mb-1 text-blue-600 dark:text-blue-400" />
-                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                          自分のみ（個人用）
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      家族の画面には一切表示されず、あなただけが見られます
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tip 3: 実家の親・シニア見守り（見るだけ権限と五十音順） */}
-              <div
-                id="tip-role"
-                className="scroll-mt-20 rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs"
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      <UserCheck className="h-4 w-4" />
-                      活用シーン 03
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                      <JpText>
-                        誤操作を防ぐ「見るだけ権限」＆ 五十音あ〜わ順
-                      </JpText>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      <JpText>
-                        ITが苦手な親御さんでも迷わないよう、画面端の「あ〜わ」五十音順バーですぐに探せます。また、親御さんを「メンバー（見るだけ権限）」にしておくことで、誤って大切なアカウントを削除・変更してしまう事故を防止できます。
-                      </JpText>
-                    </p>
-                    <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          五十音順で探すための「ふりがな」はURL入力時に自動入力
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          管理者は招待の承認や設定変更が可能。メンバーは安全に閲覧のみ
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* UIモック */}
-                  <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <span className="text-xs font-bold text-foreground">
-                        メンバー権限一覧
-                      </span>
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">
-                        2名所属中
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs sm:text-sm font-bold text-foreground">
-                            あなた（作成者）
+                  <div className="space-y-6">
+                    {/* Tip 1: サブスク・Wi-Fiの家族共有 */}
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-600 dark:text-orange-400">
+                            <Users className="h-4 w-4" />
+                            活用シーン 01
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              サブスクや自宅Wi-Fiを家族みんなで共有する
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              動画配信サービスや音楽配信、自宅のWi-Fiルーター設定など、家族全員が使うアカウントを「家族共有」で登録しておけば、誰かがパスワードを変えてもヒントを更新するだけで家族全員に一瞬で同期されます。
+                            </JpText>
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            管理・編集・招待承認が可能
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                同時編集検知により、家族同士の上書き事故をリアルタイムで防止
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                1つのサービスにプロファイル別など最大10件のアカウントを登録可能
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* UIモック */}
+                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                            <span className="text-xs font-bold text-foreground">
+                              家族共有の登録例
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                              リアルタイム同期中
+                            </Badge>
+                          </div>
+                          <div className="rounded-lg bg-background border border-border p-3.5 space-y-2 shadow-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-sm text-foreground">
+                                自宅 Wi-Fi ルーター
+                              </span>
+                              <span className="text-xs bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-semibold">
+                                家族共有
+                              </span>
+                            </div>
+                            <div className="bg-muted/50 rounded p-2.5 text-xs space-y-1">
+                              <p className="text-muted-foreground">
+                                SSID: Home_WiFi_5G
+                              </p>
+                              <p className="text-foreground font-semibold">
+                                ヒント: 冷蔵庫のマグネット番号＋愛猫の誕生日
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tip 2: 自分専用の秘密メモ */}
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
+                            <Lock className="h-4 w-4" />
+                            活用シーン 02
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              家族に見られたくない「自分専用の秘密メモ」
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              家族グループに所属していても、登録時に所有設定を「自分のみ（個人用）」にするだけで、家族のメンバーであっても一覧にすら表示されません。完全に独立したプライベートなアカウント帳として安全に併用できます。
+                            </JpText>
+                          </p>
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                高度なセキュリティで保護され、あなた以外は閲覧不能
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                あとからいつでもワンタップで「家族共有」に変更可能
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* UIモック */}
+                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                            <span className="text-xs font-bold text-foreground">
+                              公開範囲の切り替え
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ワンタップ切替
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="rounded-lg border border-border bg-background p-3 text-center opacity-60">
+                              <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground font-medium">
+                                家族共有
+                              </span>
+                            </div>
+                            <div className="rounded-lg border-2 border-blue-500 bg-blue-500/5 p-3 text-center shadow-xs">
+                              <Lock className="h-5 w-5 mx-auto mb-1 text-blue-600 dark:text-blue-400" />
+                              <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                                自分のみ（個人用）
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            家族の画面には一切表示されず、あなただけが見られます
                           </p>
                         </div>
-                        <Badge variant="default" className="text-xs">
-                          管理者
-                        </Badge>
                       </div>
-                      <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs sm:text-sm font-bold text-foreground">
-                            お母さん
+                    </div>
+
+                    {/* Tip 3: 実家の親・シニア見守り（一般権限と五十音順） */}
+                    <div
+                      id="tip-role"
+                      className="scroll-mt-40 rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs"
+                    >
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            <UserCheck className="h-4 w-4" />
+                            活用シーン 03
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              共有データの誤操作を防ぐ「一般権限」＆
+                              五十音あ〜わ順
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              ITが苦手な親御さんでも迷わないよう、画面端の「あ〜わ」五十音順バーですぐに探せます。また、家族から共有されたレコードにはデフォルトで変更・削除権限がつかない「一般権限（メンバー）」として参加してもらうことで、大切な共有アカウントの誤操作事故を防止できます。（※メンバー自身による新規レコード作成や自分からの家族共有は通常通り自由に行えます）
+                            </JpText>
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            閲覧・コピーのみ（誤操作なし）
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                五十音順で探すための「ふりがな」はURL入力時に自動入力
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                ファミリー管理者は招待承認や設定変更が可能。一般メンバーは共有されたデータを安全に利用
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* UIモック */}
+                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                            <span className="text-xs font-bold text-foreground">
+                              メンバー権限一覧
+                            </span>
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">
+                              2名所属中
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
+                              <div>
+                                <p className="text-xs sm:text-sm font-bold text-foreground">
+                                  あなた（作成者）
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  管理・編集・招待承認が可能
+                                </p>
+                              </div>
+                              <Badge variant="default" className="text-xs">
+                                ファミリー管理者
+                              </Badge>
+                            </div>
+                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
+                              <div>
+                                <p className="text-xs sm:text-sm font-bold text-foreground">
+                                  お母さん
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  被共有データの誤変更を防止
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                メンバー（一般権限）
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tip 4: 実家と自宅の複数アカウント切替 */}
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-600 dark:text-purple-400">
+                            <RefreshCw className="h-4 w-4" />
+                            活用シーン 04
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              実家用・自分の家庭用など複数グループを使い分け
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              1つのGoogleアカウントで、実家用・自分の家庭用など複数のグループを保持できます。メニューからワンタップで切り替えられ、別のGoogleアカウントで入り直す手間が一切ありません。
+                            </JpText>
+                          </p>
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                切り替え時に直前のグループを自動で安全に再ロック
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                グループごとに異なる家族パスコードで安全に分離
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* UIモック */}
+                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                            <span className="text-xs font-bold text-foreground">
+                              グループ切替メニュー
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ワンタップ
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="rounded-lg bg-background border-2 border-purple-500/60 p-3 flex items-center justify-between shadow-xs">
+                              <div>
+                                <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                                  <Check className="h-4 w-4 text-purple-600" />
+                                  実家グループ
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  親と共有中（3名）
+                                </p>
+                              </div>
+                              <span className="text-xs bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded font-bold">
+                                選択中
+                              </span>
+                            </div>
+                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between opacity-70">
+                              <div>
+                                <p className="text-xs sm:text-sm font-medium text-foreground">
+                                  マイファミリー
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  配偶者と共有中（2名）
+                                </p>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                切替可能
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tip 5: CSVからの一括取り込み */}
+                    <div
+                      id="tip-csv"
+                      className="scroll-mt-40 rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs"
+                    >
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                            <FileSpreadsheet className="h-4 w-4" />
+                            活用シーン 05
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              CSVやExcel・メモ帳からのアカウント一括取り込み
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              すでに表計算ソフトやメモ帳に記録していた大量のアカウント情報を、CSVインポートでまとめて取り込めます（最大500件）。既存データとの重複チェック、画像の自動取得、端末内での一括暗号化に対応しています。
+                            </JpText>
+                          </p>
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                既存データとの重複は「新規追加・上書き・スキップ」を選べる
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                CSV書き出し（エクスポート）にも対応し、いつでも手元に保管可能
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* UIモック */}
+                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                            <span className="text-xs font-bold text-foreground">
+                              CSVインポートプレビュー
+                            </span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded font-medium">
+                              24件検出
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="rounded bg-background border border-border p-2.5 flex items-center justify-between text-xs">
+                              <span className="font-semibold text-foreground">
+                                Amazon Prime
+                              </span>
+                              <span className="text-[11px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded font-medium">
+                                新規追加
+                              </span>
+                            </div>
+                            <div className="rounded bg-background border border-border p-2.5 flex items-center justify-between text-xs">
+                              <span className="font-semibold text-foreground">
+                                YouTube Premium
+                              </span>
+                              <span className="text-[11px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded font-medium">
+                                上書き更新
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            取り込みボタンを押すと、スマホ内で自動暗号化されて保存されます
                           </p>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          見るだけ権限
-                        </Badge>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Tip 4: 実家と自宅の複数アカウント切替 */}
-              <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-600 dark:text-purple-400">
-                      <RefreshCw className="h-4 w-4" />
-                      活用シーン 04
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                      <JpText>
-                        実家用・自分の家庭用など複数グループを使い分け
-                      </JpText>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      <JpText>
-                        1つのGoogleアカウントで、実家用・自分の家庭用など複数のグループを保持できます。メニューからワンタップで切り替えられ、別のGoogleアカウントで入り直す手間が一切ありません。
-                      </JpText>
-                    </p>
-                    <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          切り替え時に直前のグループを自動で安全に再ロック
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          グループごとに異なる家族パスコードで安全に分離
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* UIモック */}
-                  <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <span className="text-xs font-bold text-foreground">
-                        グループ切替メニュー
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ワンタップ
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="rounded-lg bg-background border-2 border-purple-500/60 p-3 flex items-center justify-between shadow-xs">
-                        <div>
-                          <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                            <Check className="h-4 w-4 text-purple-600" />
-                            実家グループ
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            親と共有中（3名）
-                          </p>
-                        </div>
-                        <span className="text-xs bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded font-bold">
-                          選択中
-                        </span>
-                      </div>
-                      <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between opacity-70">
-                        <div>
-                          <p className="text-xs sm:text-sm font-medium text-foreground">
-                            マイファミリー
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            配偶者と共有中（2名）
-                          </p>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          切替可能
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tip 5: CSVからの一括取り込み */}
-              <div
-                id="tip-csv"
-                className="scroll-mt-20 rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs"
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
-                      <FileSpreadsheet className="h-4 w-4" />
-                      活用シーン 05
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                      <JpText>
-                        CSVやExcel・メモ帳からのアカウント一括取り込み
-                      </JpText>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      <JpText>
-                        すでに表計算ソフトやメモ帳に記録していた大量のアカウント情報を、CSVインポートでまとめて取り込めます（最大500件）。既存データとの重複チェック、画像の自動取得、端末内での一括暗号化に対応しています。
-                      </JpText>
-                    </p>
-                    <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          既存データとの重複は「新規追加・上書き・スキップ」を選べる
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          CSV書き出し（エクスポート）にも対応し、いつでも手元に保管可能
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* UIモック */}
-                  <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <span className="text-xs font-bold text-foreground">
-                        CSVインポートプレビュー
-                      </span>
-                      <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded font-medium">
-                        24件検出
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="rounded bg-background border border-border p-2.5 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-foreground">
-                          Amazon Prime
-                        </span>
-                        <span className="text-[11px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded font-medium">
-                          新規追加
-                        </span>
-                      </div>
-                      <div className="rounded bg-background border border-border p-2.5 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-foreground">
-                          YouTube Premium
-                        </span>
-                        <span className="text-[11px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded font-medium">
-                          上書き更新
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      取り込みボタンを押すと、スマホ内で自動暗号化されて保存されます
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+              </CarouselItem>
+            </CarouselContent>
+          </Carousel>
+        </div>
       </div>
 
       {/* ─── ③ もしもの時の安心設計（トラブルシューティング） ─── */}
@@ -1000,11 +1093,15 @@ function UsagePage() {
               value="q2"
               className="rounded-xl border border-border bg-card px-4 sm:px-6 shadow-xs"
             >
-              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline">
-                家族パスコードを忘れてしまった場合はどうすればいいですか？
+              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline text-left">
+                <JpText>
+                  家族パスコードを忘れてしまった場合はどうすればいいですか？
+                </JpText>
               </AccordionTrigger>
-              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
-                PoohMaはセキュリティのため、運営側でもパスコードをお調べすることはできません。ただし、事前に発行できる「印刷用リカバリーキット（復元コード）」があれば、登録メール宛に届く確認コードと組み合わせて安全に新しいパスコードを再設定できます。
+              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4 whitespace-pre-wrap">
+                <JpText>
+                  PoohMaはセキュリティのため、運営側でもパスコードをお調べすることはできません。ただし、事前に発行できる「印刷用リカバリーキット（復元コード）」があれば、登録メール宛に届く確認コードと組み合わせて安全に新しいパスコードを再設定できます。
+                </JpText>
               </AccordionContent>
             </AccordionItem>
 
@@ -1012,11 +1109,15 @@ function UsagePage() {
               value="q3"
               className="rounded-xl border border-border bg-card px-4 sm:px-6 shadow-xs"
             >
-              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline">
-                家族に知られたくない個人的なアカウントも管理できますか？
+              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline text-left">
+                <JpText>
+                  家族に知られたくない個人的なアカウントも管理できますか？
+                </JpText>
               </AccordionTrigger>
-              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
-                はい、管理できます。各アカウントの登録時に「自分のみ（個人用）」を選択すれば、家族グループのメンバーであっても一切閲覧できません。自分専用のプライベートなヒント帳として安心して併用いただけます。
+              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4 whitespace-pre-wrap">
+                <JpText>
+                  はい、管理できます。各アカウントの登録時に「自分のみ（個人用）」を選択すれば、家族グループのメンバーであっても一切閲覧できません。自分専用のプライベートなヒント帳として安心して併用いただけます。
+                </JpText>
               </AccordionContent>
             </AccordionItem>
 
@@ -1024,12 +1125,16 @@ function UsagePage() {
               value="q4"
               className="rounded-xl border border-border bg-card px-4 sm:px-6 shadow-xs"
             >
-              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline">
-                スマートフォンを機種変更した時の引き継ぎ方法は？
+              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline text-left">
+                <JpText>
+                  スマートフォンを機種変更した時の引き継ぎ方法は？
+                </JpText>
               </AccordionTrigger>
-              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
-                特別な移行作業は不要です。新しいスマートフォンのブラウザでPoohMaにアクセスし、同じGoogleアカウントでログイン後、いつもの家族パスコードを入力するだけで全データが復元されます。新しい端末で改めて生体認証（指紋・Face
-                ID）をご登録ください。
+              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4 whitespace-pre-wrap">
+                <JpText>
+                  特別な移行作業は不要です。新しいスマートフォンのブラウザでPoohMaにアクセスし、同じGoogleアカウントでログイン後、いつもの家族パスコードを入力するだけで全データが復元されます。新しい端末で改めて生体認証（指紋・Face
+                  ID）をご登録ください。
+                </JpText>
               </AccordionContent>
             </AccordionItem>
 
@@ -1037,11 +1142,13 @@ function UsagePage() {
               value="q5"
               className="rounded-xl border border-border bg-card px-4 sm:px-6 shadow-xs"
             >
-              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline">
-                生体認証（Touch ID / Face ID）は安全ですか？
+              <AccordionTrigger className="text-sm sm:text-base font-semibold text-foreground py-4 hover:no-underline text-left">
+                <JpText>生体認証（Touch ID / Face ID）は安全ですか？</JpText>
               </AccordionTrigger>
-              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
-                スマートフォンの標準規格（WebAuthn）による安全な生体認証を採用しています。生体情報そのものが外部やサーバーに送信されることは一切なく、端末内の安全なセキュア領域でのみ照合・認証代行が行われるため、極めて安全です。
+              <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4 whitespace-pre-wrap">
+                <JpText>
+                  スマートフォンの標準規格（WebAuthn）による安全な生体認証を採用しています。生体情報そのものが外部やサーバーに送信されることは一切なく、端末内の安全なセキュア領域でのみ照合・認証代行が行われるため、極めて安全です。
+                </JpText>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -1112,7 +1219,7 @@ function UsagePage() {
                   asChild
                   className="w-full sm:w-auto h-12 px-8 text-sm font-semibold bg-foreground text-background hover:bg-foreground/90 rounded-xl shadow-sm"
                 >
-                  <Link to="/login">無料でアカウントを作成する</Link>
+                  <Link to="/login">ログインして始める</Link>
                 </Button>
                 <Button
                   asChild
@@ -1391,40 +1498,7 @@ function HintDecryptDemo() {
           </div>
         </div>
 
-        {/* ⑤ デモ操作バー */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-          <div className="text-muted-foreground text-[11px]">
-            {demoStatus === "unlocked"
-              ? "一時表示中（画面を離れると自動でロック）"
-              : "※「クリックして表示」を押すとデモが始まります"}
-          </div>
-          <div>
-            {demoStatus === "unlocked" ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>もう一度見る</span>
-              </Button>
-            ) : !isDialogOpen ? (
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleStartDemo}
-                className="h-8 px-3.5 text-xs font-semibold gap-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                <span>解除デモを再生する</span>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-
-        {/* ⑥ 家族パスコード入力モーダル演出（PasscodeProvider完全再現） */}
+        {/* ⑤ 家族パスコード入力モーダル演出（PasscodeProvider完全再現） */}
         {isDialogOpen && (
           <div className="absolute inset-0 bg-background/85 backdrop-blur-xs flex items-center justify-center p-3 z-10 animate-in fade-in duration-200">
             <div className="w-full max-w-sm rounded-xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-3.5 animate-in zoom-in-95 duration-200">
@@ -1500,11 +1574,46 @@ function HintDecryptDemo() {
         )}
       </div>
 
+      {/* デモ操作バー（カード外） */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pt-0.5 text-xs">
+        <div className="text-muted-foreground text-[11px] sm:text-xs">
+          {demoStatus === "unlocked"
+            ? "一時表示中（画面を離れると自動でロック）"
+            : "※「クリックして表示」またはボタンを押すとデモが始まります"}
+        </div>
+        <div className="w-full sm:w-auto flex justify-end">
+          {demoStatus === "unlocked" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              className="w-full sm:w-auto h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border cursor-pointer"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>もう一度見る</span>
+            </Button>
+          ) : !isDialogOpen ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleStartDemo}
+              className="w-full sm:w-auto h-8 px-3.5 text-xs font-semibold gap-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>解除デモを再生する</span>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="rounded-xl bg-muted/40 p-3.5 text-xs text-muted-foreground space-y-1 leading-relaxed border border-border/50">
         <p className="font-semibold text-foreground flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           <span>
-            一度パスコードを入力すれば、設定した無操作時間が経過するか、画面を閉じるまで有効
+            <JpText>
+              一度パスコードを入力すれば、設定した無操作時間が経過するか、画面を閉じるまで有効
+            </JpText>
           </span>
         </p>
         <p className="text-[11px] sm:text-xs">
