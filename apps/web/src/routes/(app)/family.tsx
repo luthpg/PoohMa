@@ -47,7 +47,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1426,12 +1425,12 @@ function FamilyComponent() {
                 招待コード管理
               </h3>
               {/* 招待コード新規発行 */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <select
                   value={selectedTtl}
                   onChange={(e) => setSelectedTtl(Number(e.target.value))}
                   disabled={isCreatingInvite}
-                  className="rounded-md bg-card px-2.5 py-1.5 text-[13px] font-medium text-foreground shadow-border border border-border focus:outline-none focus:ring-2 focus:ring-orange-500/50 cursor-pointer"
+                  className="rounded-md bg-card px-2.5 py-1.5 text-[13px] font-medium text-foreground shadow-border border border-border focus:outline-none focus:ring-2 focus:ring-orange-500/50 cursor-pointer flex-1 sm:flex-initial"
                 >
                   <option value={60}>有効期限: 1時間</option>
                   <option value={1440}>有効期限: 1日</option>
@@ -1442,7 +1441,7 @@ function FamilyComponent() {
                   type="button"
                   onClick={handleCreateInvite}
                   disabled={isCreatingInvite}
-                  className="flex items-center gap-1.5 rounded-md bg-orange-500 px-3 py-1.5 text-[13px] font-medium text-white shadow-border hover:bg-orange-600 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  className="flex items-center gap-1.5 rounded-md bg-orange-500 px-3 py-1.5 text-[13px] font-medium text-white shadow-border hover:bg-orange-600 transition cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
                 >
                   {isCreatingInvite ? (
                     <Spinner className="h-3.5 w-3.5" />
@@ -1652,88 +1651,29 @@ function FamilyComponent() {
                 return (
                   <li
                     key={u.id}
-                    className="flex items-center justify-between rounded-md bg-card p-4 shadow-border-light"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md bg-card p-4 shadow-border-light"
                   >
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-medium text-foreground flex items-center gap-2">
-                        {u.displayName || "名無し"}
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[14px] font-medium text-foreground truncate">
+                          {u.displayName || "名無し"}
+                        </span>
                         {isCurrentAccount && (
-                          <span className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium px-2 py-0.5 rounded-md">
+                          <span className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium px-2 py-0.5 rounded-md shrink-0">
                             選択中のアカウント
                           </span>
                         )}
                         {isMyOtherAccount && (
-                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-md">
+                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-md shrink-0">
                             あなたの別アカウント
                           </span>
                         )}
-                      </span>
-                      <span className="text-[12px] text-muted-foreground">
+                      </div>
+                      <span className="text-[12px] text-muted-foreground truncate mt-0.5">
                         {u.email}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {isFamilyAdmin ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isUpdatingRole}
-                              className="h-8 gap-1 text-xs"
-                              data-testid={`role-dropdown-btn-${u.id}`}
-                            >
-                              <Badge
-                                variant={
-                                  u.familyRole === "admin"
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                                className="text-[11px]"
-                              >
-                                {u.familyRole === "admin"
-                                  ? "ファミリー管理者"
-                                  : "メンバー"}
-                              </Badge>
-                              <ChevronDown className="h-3 w-3 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              disabled={
-                                u.familyRole === "admin" || isUpdatingRole
-                              }
-                              onClick={() => handleRoleChange(u.id, "admin")}
-                            >
-                              ファミリー管理者にする
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={
-                                u.familyRole === "viewer" ||
-                                (u.familyRole === "admin" && adminCount <= 1) ||
-                                isUpdatingRole
-                              }
-                              onClick={() => handleRoleChange(u.id, "viewer")}
-                            >
-                              {u.familyRole === "admin" && adminCount <= 1
-                                ? "最後の管理者のため変更不可"
-                                : "メンバーにする"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge
-                          variant={
-                            u.familyRole === "admin" ? "secondary" : "outline"
-                          }
-                          className="text-[11px]"
-                        >
-                          {u.familyRole === "admin"
-                            ? "ファミリー管理者"
-                            : "メンバー"}
-                        </Badge>
-                      )}
-
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                       {!isCurrentAccount &&
                         !isMyOtherAccount &&
                         isFamilyAdmin && (
@@ -1766,6 +1706,55 @@ function FamilyComponent() {
                             削除
                           </button>
                         )}
+
+                      {isFamilyAdmin ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isUpdatingRole}
+                              className="h-8 gap-1 text-[12px] font-normal"
+                              data-testid={`role-dropdown-btn-${u.id}`}
+                            >
+                              <span>
+                                {u.familyRole === "admin"
+                                  ? "ファミリー管理者"
+                                  : "メンバー"}
+                              </span>
+                              <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              disabled={
+                                u.familyRole === "admin" || isUpdatingRole
+                              }
+                              onClick={() => handleRoleChange(u.id, "admin")}
+                            >
+                              ファミリー管理者にする
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={
+                                u.familyRole === "viewer" ||
+                                (u.familyRole === "admin" && adminCount <= 1) ||
+                                isUpdatingRole
+                              }
+                              onClick={() => handleRoleChange(u.id, "viewer")}
+                            >
+                              {u.familyRole === "admin" && adminCount <= 1
+                                ? "最後の管理者のため変更不可"
+                                : "メンバーにする"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <span className="text-[12px] text-muted-foreground font-normal px-1">
+                          {u.familyRole === "admin"
+                            ? "ファミリー管理者"
+                            : "メンバー"}
+                        </span>
+                      )}
                     </div>
                   </li>
                 );
@@ -1861,7 +1850,7 @@ function FamilyComponent() {
             className="mt-8 border-t border-border pt-6"
           >
             <div className="mb-4 space-y-1">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <h3 className="text-[14px] font-medium text-foreground">
                   家族パスコードの変更
                 </h3>
@@ -1872,7 +1861,7 @@ function FamilyComponent() {
                   }
                   className="rounded-md bg-card px-3 py-1.5 text-[13px] font-medium text-foreground shadow-border hover:bg-accent transition shrink-0 cursor-pointer"
                 >
-                  {showRotatePasscodeForm ? "閉じる" : "パスコードを変更"}
+                  {showRotatePasscodeForm ? "閉じる" : "パスコード変更"}
                 </button>
               </div>
               <p className="text-[12px] text-muted-foreground leading-relaxed">
@@ -2050,10 +2039,10 @@ function FamilyComponent() {
           <div className="mt-8 border-t border-border pt-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   <h3 className="text-[14px] font-medium text-foreground">
-                    リカバリーキット（復旧コード）
+                    リカバリーキット
                   </h3>
                   {recoveryStatus?.hasRecoveryKit ? (
                     <span className="text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full border border-emerald-500/20">
