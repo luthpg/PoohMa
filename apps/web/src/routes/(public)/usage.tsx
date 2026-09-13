@@ -6,10 +6,10 @@ import {
   Eye,
   FileSpreadsheet,
   HelpCircle,
+  ListOrdered,
   Lock,
   Play,
   Printer,
-  QrCode,
   RefreshCw,
   RotateCcw,
   Share2,
@@ -127,6 +127,57 @@ function UsagePage() {
       carouselApi.off("settle", onSettle);
     };
   }, [carouselApi, pendingTipTarget]);
+
+  // カルーセル viewport の高さを現在のスライドに合わせて動的に調整
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    const viewport = carouselApi.rootNode();
+    if (!viewport) return;
+
+    const syncHeight = (animate: boolean) => {
+      const selectedSlide =
+        carouselApi.slideNodes()[carouselApi.selectedScrollSnap()];
+      if (!selectedSlide) return;
+
+      // 固定 height が測定を制約しないよう一旦 auto に戻して計測
+      viewport.style.transition = "none";
+      viewport.style.height = "auto";
+      const targetHeight = selectedSlide.offsetHeight;
+
+      if (animate) {
+        // 直前の高さに戻してからアニメーション開始
+        viewport.style.height = `${viewport.scrollHeight}px`;
+        // reflow を挟んでトランジションを有効化
+        void viewport.offsetHeight;
+        viewport.style.transition = "height 0.3s ease";
+      }
+      viewport.style.height = `${targetHeight}px`;
+    };
+
+    // 初回は即座に（トランジションなし）
+    syncHeight(false);
+
+    // タブ切替時はアニメーション付き
+    const onSelect = () => syncHeight(true);
+    carouselApi.on("select", onSelect);
+
+    // 画像の遅延ロードやコンテンツ変化で高さが変わった場合に追従
+    const observer = new ResizeObserver(() => syncHeight(false));
+    for (const slide of carouselApi.slideNodes()) {
+      observer.observe(slide);
+    }
+
+    // ウィンドウリサイズ
+    const onResize = () => syncHeight(false);
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      carouselApi.off("select", onSelect);
+      observer.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [carouselApi]);
 
   return (
     <div className="flex flex-col w-full overflow-x-clip">
@@ -305,20 +356,13 @@ function UsagePage() {
                               </p>
                             </div>
 
-                            <div className="rounded-lg bg-background border border-border p-3 space-y-2">
-                              <div className="flex items-center justify-between text-xs font-medium text-foreground">
-                                <span className="flex items-center gap-1.5 font-bold">
-                                  <QrCode className="h-4 w-4 text-orange-500" />
-                                  招待リンク・QR発行
-                                </span>
-                                <span className="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-medium">
-                                  LINE等で共有可
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between bg-muted/50 rounded px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate">
-                                <span>poohma.app/invite/...</span>
-                                <Share2 className="h-3.5 w-3.5 text-foreground shrink-0 ml-2" />
-                              </div>
+                            <div className="rounded-xl overflow-hidden border border-border shadow-md">
+                              <img
+                                src="/usage-step1-invite-code.png"
+                                alt="招待コード発行画面"
+                                className="w-full max-w-[280px] mx-auto"
+                                loading="lazy"
+                              />
                             </div>
                           </>
                         ) : (
@@ -391,49 +435,20 @@ function UsagePage() {
                         </JpText>
                       </p>
 
-                      {/* UIプレビュー風カード */}
-                      <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3 mb-4 flex-1">
-                        <div className="space-y-1">
-                          <span className="text-xs text-muted-foreground font-medium">
-                            WebサイトのURLを入力:
-                          </span>
-                          <div className="font-mono text-xs text-foreground font-medium bg-background px-3 py-1.5 rounded-lg border border-border">
-                            netflix.com
-                          </div>
-                        </div>
-
-                        {/* 自動セットプレビュー */}
-                        <div className="rounded-lg bg-background border border-border p-3 space-y-2 shadow-xs">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-6 w-6 rounded-md bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xs">
-                                N
-                              </div>
-                              <span className="font-bold text-xs sm:text-sm text-foreground">
-                                Netflix（ネットフリックス）
-                              </span>
-                            </div>
-                            <span className="text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-medium">
-                              家族共有
-                            </span>
-                          </div>
-
-                          <div className="bg-muted/50 rounded-md p-2.5 text-xs space-y-1">
-                            <p className="text-muted-foreground font-mono">
-                              ログインID: kazoku@example.com
-                            </p>
-                            <p className="text-foreground font-semibold">
-                              ヒント: 実家の愛犬の名前＋母の誕生月
-                            </p>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          <JpText>
-                            ※URLを入れるだけで、サービス名や画像、五十音用のふりがなが自動でセットされます。
-                          </JpText>
-                        </p>
+                      {/* UIプレビュー：実際のスクリーンショット */}
+                      <div className="rounded-xl overflow-hidden border border-border/80 shadow-md mb-4 flex-1">
+                        <img
+                          src="/usage-step2-record-new.png"
+                          alt="サービス登録画面"
+                          className="w-full max-w-[320px] mx-auto"
+                          loading="lazy"
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                        <JpText>
+                          ※URLを入れるだけで、サービス名や画像、五十音用のふりがなが自動でセットされます。
+                        </JpText>
+                      </p>
 
                       <div className="pt-3 border-t border-border/60">
                         <button
@@ -545,8 +560,8 @@ function UsagePage() {
                 className="pl-0 basis-full min-w-full"
               >
                 {/* ──────────────────────────────────────────────────────────
-             【便利な機能・Tipsタブ】応用編：使いこなすための安心・便利機能
-             ────────────────────────────────────────────────────────── */}
+                  【便利な機能・Tipsタブ】応用編：使いこなすための安心・便利機能
+                  ────────────────────────────────────────────────────────── */}
                 <div className="space-y-10">
                   <div className="text-center max-w-2xl mx-auto">
                     <Badge
@@ -697,7 +712,7 @@ function UsagePage() {
                       </div>
                     </div>
 
-                    {/* Tip 3: 実家の親・シニア見守り（一般権限と五十音順） */}
+                    {/* Tip 3: 共有データの誤操作を防ぐ「一般権限」 */}
                     <div
                       id="tip-role"
                       className="scroll-mt-40 rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs"
@@ -710,69 +725,84 @@ function UsagePage() {
                           </div>
                           <h3 className="text-lg sm:text-xl font-bold text-foreground">
                             <JpText>
-                              共有データの誤操作を防ぐ「一般権限」＆
-                              五十音あ〜わ順
+                              共有データの誤操作を防ぐ「一般権限」
                             </JpText>
                           </h3>
                           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                             <JpText>
-                              ITが苦手な親御さんでも迷わないよう、画面端の「あ〜わ」五十音順バーですぐに探せます。また、家族から共有されたレコードにはデフォルトで変更・削除権限がつかない「一般権限（メンバー）」として参加してもらうことで、大切な共有アカウントの誤操作事故を防止できます。（※メンバー自身による新規レコード作成や自分からの家族共有は通常通り自由に行えます）
+                              家族から共有されたレコードにはデフォルトで変更・削除権限がつかない「一般権限（メンバー）」として参加してもらうことで、大切な共有アカウントの誤操作事故を防止できます。（※メンバー自身による新規レコード作成や自分からの家族共有は通常通り自由に行えます）
                             </JpText>
                           </p>
                           <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
                             <li className="flex items-center gap-2">
                               <Check className="h-4 w-4 text-emerald-500 shrink-0" />
                               <span>
-                                五十音順で探すための「ふりがな」はURL入力時に自動入力
+                                ファミリー管理者は招待承認や設定変更が可能。一般メンバーは共有されたデータを安全に利用
                               </span>
                             </li>
                             <li className="flex items-center gap-2">
                               <Check className="h-4 w-4 text-emerald-500 shrink-0" />
                               <span>
-                                ファミリー管理者は招待承認や設定変更が可能。一般メンバーは共有されたデータを安全に利用
+                                レコード個別に管理権限を付与することも可能
                               </span>
                             </li>
                           </ul>
                         </div>
 
-                        {/* UIモック */}
-                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                            <span className="text-xs font-bold text-foreground">
-                              メンバー権限一覧
-                            </span>
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">
-                              2名所属中
-                            </span>
+                        {/* 実際のメンバー権限管理画面 */}
+                        <div className="lg:col-span-5 rounded-xl overflow-hidden border border-border shadow-md">
+                          <img
+                            src="/usage-tip3-member-roles.png"
+                            alt="メンバー権限管理画面"
+                            className="w-full max-w-[320px] mx-auto"
+                            loading="lazy"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tip 4: 五十音インデックスバーで瞬時に探す */}
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-xs">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                        <div className="lg:col-span-7 space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-lg bg-teal-500/10 px-3 py-1 text-xs font-bold text-teal-600 dark:text-teal-400">
+                            <ListOrdered className="h-4 w-4" />
+                            活用シーン 04
                           </div>
-                          <div className="space-y-2">
-                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
-                              <div>
-                                <p className="text-xs sm:text-sm font-bold text-foreground">
-                                  あなた（作成者）
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  管理・編集・招待承認が可能
-                                </p>
-                              </div>
-                              <Badge variant="default" className="text-xs">
-                                ファミリー管理者
-                              </Badge>
-                            </div>
-                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between">
-                              <div>
-                                <p className="text-xs sm:text-sm font-bold text-foreground">
-                                  お母さん
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  被共有データの誤変更を防止
-                                </p>
-                              </div>
-                              <Badge variant="outline" className="text-xs">
-                                メンバー（一般権限）
-                              </Badge>
-                            </div>
-                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                            <JpText>
+                              五十音「あ〜わ」インデックスバーで瞬時に探す
+                            </JpText>
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            <JpText>
+                              ITが苦手な親御さんでも迷わないよう、画面右端の「あ〜わ」五十音順バーをタップするだけで目当てのサービスへ瞬時にジャンプできます。ふりがなはURL入力時に自動セットされるため、手間なく五十音順で整理されます。
+                            </JpText>
+                          </p>
+                          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                ふりがなはURL入力時に自動入力。手動で修正も可能
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>
+                                登録数が増えても、五十音・アルファベット順で素早くアクセス
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* ダッシュボード一覧（五十音バー付き）のスクリーンショット */}
+                        <div className="lg:col-span-5 rounded-xl overflow-hidden border border-border shadow-md">
+                          <img
+                            src="/usage-tip4-dashboard-list.png"
+                            alt="五十音インデックスバー付きダッシュボード"
+                            className="w-full max-w-[320px] mx-auto"
+                            loading="lazy"
+                          />
                         </div>
                       </div>
                     </div>
@@ -783,7 +813,7 @@ function UsagePage() {
                         <div className="lg:col-span-7 space-y-3">
                           <div className="inline-flex items-center gap-2 rounded-lg bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-600 dark:text-purple-400">
                             <RefreshCw className="h-4 w-4" />
-                            活用シーン 04
+                            活用シーン 05
                           </div>
                           <h3 className="text-lg sm:text-xl font-bold text-foreground">
                             <JpText>
@@ -811,45 +841,14 @@ function UsagePage() {
                           </ul>
                         </div>
 
-                        {/* UIモック */}
-                        <div className="lg:col-span-5 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                          <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                            <span className="text-xs font-bold text-foreground">
-                              グループ切替メニュー
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              ワンタップ
-                            </span>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="rounded-lg bg-background border-2 border-purple-500/60 p-3 flex items-center justify-between shadow-xs">
-                              <div>
-                                <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                                  <Check className="h-4 w-4 text-purple-600" />
-                                  実家グループ
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  親と共有中（3名）
-                                </p>
-                              </div>
-                              <span className="text-xs bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded font-bold">
-                                選択中
-                              </span>
-                            </div>
-                            <div className="rounded-lg bg-background border border-border p-3 flex items-center justify-between opacity-70">
-                              <div>
-                                <p className="text-xs sm:text-sm font-medium text-foreground">
-                                  マイファミリー
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  配偶者と共有中（2名）
-                                </p>
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                切替可能
-                              </span>
-                            </div>
-                          </div>
+                        {/* 実際のアカウント切り替え画面 */}
+                        <div className="lg:col-span-5 rounded-xl overflow-hidden border border-border shadow-md">
+                          <img
+                            src="/usage-tip5-account-switch.png"
+                            alt="アカウント切り替え画面"
+                            className="w-full max-w-[320px] mx-auto"
+                            loading="lazy"
+                          />
                         </div>
                       </div>
                     </div>
@@ -863,16 +862,14 @@ function UsagePage() {
                         <div className="lg:col-span-7 space-y-3">
                           <div className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
                             <FileSpreadsheet className="h-4 w-4" />
-                            活用シーン 05
+                            活用シーン 06
                           </div>
                           <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                            <JpText>
-                              CSVやExcel・メモ帳からのアカウント一括取り込み
-                            </JpText>
+                            <JpText>CSVファイルで一括取り込み</JpText>
                           </h3>
                           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                             <JpText>
-                              すでに表計算ソフトやメモ帳に記録していた大量のアカウント情報を、CSVインポートでまとめて取り込めます（最大500件）。既存データとの重複チェック、画像の自動取得、端末内での一括暗号化に対応しています。
+                              すでにExcelなどに記録していた大量のアカウント情報を、CSVインポートでまとめて取り込めます（最大500件）。既存データとの重複チェック、画像の自動取得、端末内での一括暗号化に対応しています。
                             </JpText>
                           </p>
                           <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 pt-1">
@@ -1017,28 +1014,13 @@ function UsagePage() {
                   </JpText>
                 </p>
 
-                <div className="rounded-xl border border-dashed border-border bg-muted/30 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between text-xs pb-1.5 border-b border-border/60">
-                    <span className="font-bold text-foreground">
-                      復元シートの記載内容
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      PDF形式
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
-                      <QrCode className="h-7 w-7 text-foreground" />
-                    </div>
-                    <div className="space-y-0.5 text-xs">
-                      <p className="text-muted-foreground">
-                        復元用コード（24桁）
-                      </p>
-                      <p className="font-mono font-bold text-foreground tracking-wider">
-                        XXXX-XXXX-XXXX-XXXX
-                      </p>
-                    </div>
-                  </div>
+                <div className="rounded-xl overflow-hidden border border-dashed border-border shadow-md">
+                  <img
+                    src="/usage-recovery-sheet.png"
+                    alt="リカバリーキット（A4印刷用PDF）"
+                    className="w-full max-w-[400px] mx-auto"
+                    loading="lazy"
+                  />
                 </div>
 
                 <div className="pt-2">
