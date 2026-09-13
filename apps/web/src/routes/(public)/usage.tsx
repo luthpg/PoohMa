@@ -42,9 +42,22 @@ export const Route = createFileRoute("/(public)/usage")({
 function UsagePage() {
   const { isAuthenticated } = useAuth();
   const [mainTab, setMainTab] = useState<"basic" | "tips">("basic");
+  const [pendingTipTarget, setPendingTipTarget] = useState<
+    "tip-role" | "tip-csv" | null
+  >(null);
   const [familyFlowTab, setFamilyFlowTab] = useState<"creator" | "joiner">(
     "creator",
   );
+
+  useEffect(() => {
+    if (mainTab !== "tips" || !pendingTipTarget) return;
+
+    const element = document.getElementById(pendingTipTarget);
+    if (!element) return;
+
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+    setPendingTipTarget(null);
+  }, [mainTab, pendingTipTarget]);
 
   return (
     <div className="flex flex-col w-full overflow-x-hidden">
@@ -252,7 +265,10 @@ function UsagePage() {
                 <div className="pt-3 border-t border-border/60">
                   <button
                     type="button"
-                    onClick={() => setMainTab("tips")}
+                    onClick={() => {
+                      setPendingTipTarget("tip-role");
+                      setMainTab("tips");
+                    }}
                     className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
                   >
                     <span>💡 ご家族の誤操作を防ぐ「見るだけ権限」とは？</span>
@@ -329,7 +345,10 @@ function UsagePage() {
                 <div className="pt-3 border-t border-border/60">
                   <button
                     type="button"
-                    onClick={() => setMainTab("tips")}
+                    onClick={() => {
+                      setPendingTipTarget("tip-csv");
+                      setMainTab("tips");
+                    }}
                     className="text-xs text-primary hover:underline font-medium flex items-center justify-between w-full"
                   >
                     <span>💡 CSVやExcel・メモ帳からの一括取り込み</span>
