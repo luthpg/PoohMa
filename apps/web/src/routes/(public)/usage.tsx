@@ -214,7 +214,10 @@ function UsagePage() {
             className="w-full"
           >
             <CarouselContent className="-ml-0 items-start">
-              <CarouselItem className="pl-0 basis-full min-w-full">
+              <CarouselItem
+                aria-label="基本の使い方"
+                className="pl-0 basis-full min-w-full"
+              >
                 {/* ──────────────────────────────────────────────────────────
                  【基本の使い方タブ】初読者向け：これだけ覚えればOKの3ステップ
                  ────────────────────────────────────────────────────────── */}
@@ -537,7 +540,10 @@ function UsagePage() {
                 </div>
               </CarouselItem>
 
-              <CarouselItem className="pl-0 basis-full min-w-full">
+              <CarouselItem
+                aria-label="便利な機能・Tips"
+                className="pl-0 basis-full min-w-full"
+              >
                 {/* ──────────────────────────────────────────────────────────
              【便利な機能・Tipsタブ】応用編：使いこなすための安心・便利機能
              ────────────────────────────────────────────────────────── */}
