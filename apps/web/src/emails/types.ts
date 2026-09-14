@@ -15,8 +15,7 @@ export interface EmailTemplateDefinition<
 export type AnyEmailTemplateDefinition = EmailTemplateDefinition<
   // biome-ignore lint/suspicious/noExplicitAny: Convex Validator variance
   Validator<any, any, any>,
-  string
->;
+  string>;
 
 export function defineEmailTemplate<
   // biome-ignore lint/suspicious/noExplicitAny: Convex Validator variance
