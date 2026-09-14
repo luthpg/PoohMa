@@ -18,7 +18,9 @@
     "convex:dev:once": "pnpm web exec convex dev --once && pnpm check",
     "convex:sync": "pnpm web exec convex deploy && pnpm web exec convex codegen && pnpm check",
     "convex:codegen": "pnpm web exec convex codegen && pnpm check",
-    "convex:deploy": "pnpm web exec convex deploy"
+    "convex:deploy": "pnpm web exec convex deploy",
+    "prepreview": "pnpm -F @poohma/web exec playwright test e2e/auth.setup.ts --project=setup --no-deps",
+    "preview": "pnpm -F @poohma/web exec playwright open --load-storage=e2e/.auth/e2e-user.json --ignore-https-errors https://localhost:3000/dashboard --device=\"iPhone 17\" --color-scheme=light"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",

@@ -54,6 +54,7 @@
     "convex": "^1.43.0",
     "convex-helpers": "^0.1.122",
     "driver.js": "^1.8.0",
+    "embla-carousel-react": "^8.6.0",
     "firebase": "^12.17.1",
     "firebase-admin": "^13.10.0",
     "get-nonce": "^1.0.1",
