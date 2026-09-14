@@ -140,18 +140,26 @@ function UsagePage() {
         carouselApi.slideNodes()[carouselApi.selectedScrollSnap()];
       if (!selectedSlide) return;
 
-      // 固定 height が測定を制約しないよう一旦 auto に戻して計測
+      // auto に戻す前に現在の高さを保持する
+      const currentHeight = viewport.clientHeight;
+
       viewport.style.transition = "none";
+      // 固定 height の影響を除外して次のスライドの高さを測定
       viewport.style.height = "auto";
       const targetHeight = selectedSlide.offsetHeight;
 
-      if (animate) {
-        // 直前の高さに戻してからアニメーション開始
-        viewport.style.height = `${viewport.scrollHeight}px`;
-        // reflow を挟んでトランジションを有効化
-        void viewport.offsetHeight;
-        viewport.style.transition = "height 0.3s ease";
+      if (!animate || currentHeight === targetHeight) {
+        viewport.style.height = `${targetHeight}px`;
+        return;
       }
+
+      // 明示的に現在の高さを開始点にする
+      viewport.style.height = `${currentHeight}px`;
+
+      // reflow して currentHeight を描画させてから transition を有効化
+      void viewport.offsetHeight;
+
+      viewport.style.transition = "height 0.3s ease";
       viewport.style.height = `${targetHeight}px`;
     };
 
@@ -1247,6 +1255,34 @@ function HintDecryptDemo() {
     timerRefs.current = [];
   };
 
+  const handleCopy = async (text: string, target: "id" | "hint") => {
+    setCopyError(null);
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard API is unavailable");
+      }
+
+      await navigator.clipboard.writeText(text);
+
+      if (target === "id") {
+        setCopiedId(true);
+        window.setTimeout(() => setCopiedId(false), 1500);
+      } else {
+        setCopiedHint(true);
+        window.setTimeout(() => setCopiedHint(false), 1500);
+      }
+    } catch {
+      if (target === "id") {
+        setCopiedId(false);
+      } else {
+        setCopiedHint(false);
+      }
+
+      setCopyError(target);
+    }
+  };
+
   const handleStartDemo = () => {
     clearTimers();
     setDemoStatus("dialog");
@@ -1382,20 +1418,7 @@ function HintDecryptDemo() {
                 </span>
                 <button
                   type="button"
-                  onClick={async () => {
-                    setCopyError(null);
-                    try {
-                      if (!navigator.clipboard) {
-                        throw new Error("Clipboard API is unavailable");
-                      }
-                      await navigator.clipboard.writeText("kazoku@example.com");
-                      setCopiedId(true);
-                      setTimeout(() => setCopiedId(false), 1500);
-                    } catch {
-                      setCopiedId(false);
-                      setCopyError("id");
-                    }
-                  }}
+                  onClick={() => handleCopy("kazoku@example.com", "id")}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   {copyError === "id" ? (
@@ -1428,22 +1451,9 @@ function HintDecryptDemo() {
                 {demoStatus === "unlocked" && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      setCopyError(null);
-                      try {
-                        if (!navigator.clipboard) {
-                          throw new Error("Clipboard API is unavailable");
-                        }
-                        await navigator.clipboard.writeText(
-                          "実家の愛犬の名前＋母の誕生月",
-                        );
-                        setCopiedHint(true);
-                        setTimeout(() => setCopiedHint(false), 1500);
-                      } catch {
-                        setCopiedHint(false);
-                        setCopyError("hint");
-                      }
-                    }}
+                    onClick={() =>
+                      handleCopy("実家の愛犬の名前＋母の誕生月", "hint")
+                    }
                     className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     {copyError === "hint" ? (
