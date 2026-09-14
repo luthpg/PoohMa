@@ -222,7 +222,8 @@ Issueや実装作業を開始する際は、まず `.ai/` の構成を確認し�
 ├── pitfalls.md
 ├── decisions.md
 ├── domain.md
-└── testing.md
+├── testing.md
+└── workflows.md
 ```
 
 #### `architecture.md`
@@ -277,6 +278,12 @@ PoohMaでAI Agentが誤りやすい点、過去に問題となった点、実装
 #### `testing.md`
 
 `convex-test` によるバックエンドテスト技法、E2EE暗号テスト、UI/Providerテスト、テスト実行・検証ルール。
+
+#### `workflows.md`
+
+PoohMa で頻繁に実行される定型作業のワークフロー。
+
+- CMS コンテンツレビューワークフロー
 
 ### Updating `.ai/`
 

@@ -75,3 +75,33 @@ jobs:
 
       - name: Run Tests (Vitest)
         run: pnpm run test
+
+  convex-dry-run:
+    name: Convex Deploy Dry Run
+    runs-on: ubuntu-latest
+    # forkや外部PRはスキップ（リポジトリオーナーで判定）
+    if: ${{ github.repository_owner == github.event.repository.owner.login && !github.event.pull_request.head.repo.fork }}
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Convex Deploy Dry Run
+        working-directory: apps/web
+        run: pnpm exec convex deploy --dry-run
