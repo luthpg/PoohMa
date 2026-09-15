@@ -14,7 +14,7 @@ description: >-
 
 作業内容に応じて、以下のドキュメントをオンデマンドで必ず参照してください：
 
-- **外部レビュー（CodeRabbit等）審査**: [`.ai/pitfalls/review-and-guardrails.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/review-and-guardrails.md)
+- **外部レビュー（CodeRabbit等）審査**: [`.ai/pitfalls/review-and-guardrails.md`](../../../.ai/pitfalls/review-and-guardrails.md)
   - 一般的なReactの慣習に惑わされず、フロントエンドへの生エラー（`error.message`）露出提案を却下する。
   - マイグレーション過剰防衛コード（未バックフィル検査ガード）をアプリ側に入れず、KISS原則と手動ワンショット移行を守る。
 - **フロントエンドのエラーハンドリング**: [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) 第5節

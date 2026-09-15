@@ -11,7 +11,7 @@
   - UI、認証、E2EE暗号処理、Convexバックエンド連携、データ移行やインポート/エクスポート等、フロントエンドまたは結合動作に影響を与える変更を行った際は、コミット前に必ずローカルで `pnpm test:e2e` を実行し、全テスト合格を確認してからコミットすること。静的チェック（`pnpm verify`）のみで済ませてはならない。
 - **外部 AI / 静的レビュー指摘（CodeRabbit 等）の審査原則（盲目的追従の禁止）**:
   - CodeRabbit 等の外部 AI レビュアーの指摘をそのまま鵜呑みにしてプロダクションコードに適用してはならない。
-  - 特に「フロントエンドへの生エラーメッセージ（`error.message`）露出」「運用方針を無視した過剰なクライアントサイドガードコード」など、PoohMa の不変条件（[`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md)）やシンプル設計方針（KISS原則）に反する提案は、盲目的に従わず根拠を示して毅然と却下すること。
+  - 特に「フロントエンドへの生エラーメッセージ（`error.message`）露出」「運用方針を無視した過剰なクライアントサイドガードコード」など、PoohMa の不変条件（[`.ai/invariants.md`](./.ai/invariants.md)）やシンプル設計方針（KISS原則）に反する提案は、盲目的に従わず根拠を示して毅然と却下すること。
 - **フロントエンドにおける内部エラー・生ログ露出の完全禁止（情報漏洩防止・CWE-209・暗号鍵保護）**:
   - `toast.error(error.message)` やモーダルでの内部スタックトレース表示は厳禁。また、E2EE暗号処理のスタックやコンテキストに暗号鍵・パスコードが含まれ漏洩するリスクを防ぐため、ブラウザ側（components, hooks, routes）で `console.error(error)` や `console.log` 等による生例外オブジェクトの垂れ流しも禁止する（[`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) 第5節）。
   - 例外発生時は `catch (_error) {}` 等で安全に握るか、ユーザー向けに設計された親切で安全な固定日本語メッセージ（例: `「インポートに失敗しました」`）のみをトースト等で表示すること。
@@ -26,7 +26,7 @@
 ## 1. Environment & Shell Context
 
 - **OS / Shell**: Windows (PowerShell)
-  - Windows PowerShell 7未満では `&&` 演算子が構文エラーになるため使用禁止。連続実行が必要な場合は `$ErrorActionPreference = "Stop"; cmd1; cmd2` を使用する。
+  - Windows PowerShell 7未満では `&&` 演算子が構文エラーになるため使用禁止。連続実行が必要な場合は、`cmd1` の直後に `$LASTEXITCODE` を確認し、非ゼロなら `throw` してから `cmd2` を実行する（例: `cmd1; if ($LASTEXITCODE -ne 0) { throw "cmd1 failed: $LASTEXITCODE" }; cmd2`）。
   - パスに丸括弧 `()` や `$` が含まれる場合は必ずシングルクォート等で囲む（例: `'src/routes/(app)/records/$id.tsx'`）。
   - パイプライン（`|`）や引数直接渡しによる日本語文字化けを防ぐため、コミットや PR 作成は必ず **UTF-8 一時ファイルを経由** すること（詳細は [`.ai/workflows/git-workflow.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/workflows/git-workflow.md) 参照）。
 - **Package Manager**: `pnpm`（`npm`, `yarn` は使用禁止）。

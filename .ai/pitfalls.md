@@ -9,7 +9,7 @@ AI Agent が誤りやすい点、過去に問題となった点、実装上の�
 
 | ドメイン / トピック | ファイル | 主な内容 |
 | :--- | :--- | :--- |
-| **PR レビュー & ガードレール** | [`.ai/pitfalls/review-and-guardrails.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/review-and-guardrails.md) | 外部 AI（CodeRabbit等）審査原則、生エラー非露出却下、マイグレーション過剰防衛禁止、管理者フォールバック |
+| **PR レビュー & ガードレール** | [`.ai/pitfalls/review-and-guardrails.md`](pitfalls/review-and-guardrails.md) | 外部 AI（CodeRabbit等）審査原則、生エラー非露出却下、マイグレーション過剰防衛禁止、管理者フォールバック |
 | **バックエンド & Convex** | [`.ai/pitfalls/backend-convex.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/backend-convex.md) | `convex dev --once` ワンショット反映、RLS ヘルパー、FunctionReference Proxy キャッシュ汚染、ID 混同、キック検証 |
 | **認証 & セッション管理** | [`.ai/pitfalls/auth-session.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/auth-session.md) | Firebase Auth Single Source of Truth、Session Cookie 過剰依存、ログアウト競合、リカバリー失効検証、白画面バウンス |
 | **暗号化 (E2EE) & WebAuthn** | [`.ai/pitfalls/crypto-e2ee.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/crypto-e2ee.md) | WebAuthn PRF の役割、CryptoKey `extractable`、`KDF_VERSIONS` 追記原則 |

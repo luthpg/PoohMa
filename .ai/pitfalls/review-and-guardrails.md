@@ -15,7 +15,7 @@ PR レビュー対応、外部 AI（CodeRabbit等）指摘の審査、および�
 
 - **問題**:
   - CodeRabbit 等は、一般的な React / TypeScript の慣習に基づいて「catch した `error.message` をトーストで表示せよ」「すべての分岐で詳細例外を投げよ」といった提案を機械的に行う。
-  - AI エージェントがこれを盲目的に鵜呑みにして採用すると、PoohMa の最重要不変条件（[`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) 第5節: **トーストでの生エラー直接露出禁止**）に抵触し、内部情報漏洩（CWE-209）や暗号鍵漏洩リスクを招く。
+  - AI エージェントがこれを盲目的に鵜呑みにして採用すると、PoohMa の最重要不変条件（[`.ai/invariants.md`](../invariants.md) 第5節: **トーストでの生エラー直接露出禁止**）に抵触し、内部情報漏洩（CWE-209）や暗号鍵漏洩リスクを招く。
 - **回避法**:
   - 外部レビュー指摘を評価する際は、**必ず [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) と照合して安全性を審査する**。
   - PoohMa の不変条件に反する提案（生エラー露出、暗号化省略等）は、**「PoohMa の不変条件・セキュリティ原則に反するため」と明確な根拠を示して毅然と却下する**。

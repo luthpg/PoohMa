@@ -21,4 +21,4 @@ Windows PowerShell 環境における落とし穴と回避法です。
 ### 日本語コミットメッセージ・PR本文の文字化け
 
 - **問題**: PowerShell の標準パイプライン（`|`）や `-m` 引数はエンコーディングにより日本語が `?` に化ける。
-- **回避法**: 必ず **UTF-8 一時ファイルを経由** して `git commit -F $tmpMsgFile` や `gh pr create --body-file $tmpBodyFile` を実行する（詳細は [`.ai/workflows/git-workflow.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/workflows/git-workflow.md) 参照）。
+- **回避法**: 必ず **UTF-8 一時ファイルを経由** して `git commit -F $tmpMsgFile` や `gh pr create --body-file $tmpBodyFile` を実行する（詳細は [`.ai/workflows/git-workflow.md`](../workflows/git-workflow.md) 参照）。
