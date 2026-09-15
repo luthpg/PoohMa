@@ -13,13 +13,13 @@
   - CodeRabbit 等の外部 AI レビュアーの指摘をそのまま鵜呑みにしてプロダクションコードに適用してはならない。
   - 特に「フロントエンドへの生エラーメッセージ（`error.message`）露出」「運用方針を無視した過剰なクライアントサイドガードコード」など、PoohMa の不変条件（[`.ai/invariants.md`](./.ai/invariants.md)）やシンプル設計方針（KISS原則）に反する提案は、盲目的に従わず根拠を示して毅然と却下すること。
 - **フロントエンドにおける内部エラー・生ログ露出の完全禁止（情報漏洩防止・CWE-209・暗号鍵保護）**:
-  - `toast.error(error.message)` やモーダルでの内部スタックトレース表示は厳禁。また、E2EE暗号処理のスタックやコンテキストに暗号鍵・パスコードが含まれ漏洩するリスクを防ぐため、ブラウザ側（components, hooks, routes）で `console.error(error)` や `console.log` 等による生例外オブジェクトの垂れ流しも禁止する（[`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) 第5節）。
+  - `toast.error(error.message)` やモーダルでの内部スタックトレース表示は厳禁。また、E2EE暗号処理のスタックやコンテキストに暗号鍵・パスコードが含まれ漏洩するリスクを防ぐため、ブラウザ側（components, hooks, routes）で `console.error(error)` や `console.log` 等による生例外オブジェクトの垂れ流しも禁止する（[`.ai/invariants.md`](./.ai/invariants.md) 第5節）。
   - 例外発生時は `catch (_error) {}` 等で安全に握るか、ユーザー向けに設計された親切で安全な固定日本語メッセージ（例: `「インポートに失敗しました」`）のみをトースト等で表示すること。
 - **マイグレーション過剰防衛コードの禁止（KISS原則）**:
   - スキーマ変更やデータ移行時、Hooks や UI 側で「未移行データを検知して操作を拒否・例外スローする」過剰なガードを入れない。移行はマイグレーションスクリプト（ワンショット実行）の責務とし、アプリ側コードはフォールバック（デフォルト値）で自然に吸収すること。
 - **`.ai/` Knowledge Base の事前参照（Read）と事後還元（Write）の義務**:
-  - 実装・調査・テスト・レビュー作業に着手する前に、必ず「8. 作業種別ごとの事前参照マトリクス」に従って関連するドキュメント（特に [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) や [`.ai/pitfalls/`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/)）を確認し、不変条件に抵触しないかを事前審査すること。
-  - また、ユーザーからの指摘やレビュー対応、試行錯誤を通じて得られた知見は、コミット前に必ず [`.ai/pitfalls/`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/) や [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) に還元・蓄積すること。
+  - 実装・調査・テスト・レビュー作業に着手する前に、必ず「8. 作業種別ごとの事前参照マトリクス」に従って関連するドキュメント（特に [`.ai/invariants.md`](./.ai/invariants.md) や [`.ai/pitfalls/`](./.ai/pitfalls/)）を確認し、不変条件に抵触しないかを事前審査すること。
+  - また、ユーザーからの指摘やレビュー対応、試行錯誤を通じて得られた知見は、コミット前に必ず [`.ai/pitfalls/`](./.ai/pitfalls/) や [`.ai/invariants.md`](./.ai/invariants.md) に還元・蓄積すること。
 
 ---
 
@@ -28,7 +28,7 @@
 - **OS / Shell**: Windows (PowerShell)
   - Windows PowerShell 7未満では `&&` 演算子が構文エラーになるため使用禁止。連続実行が必要な場合は、`cmd1` の直後に `$LASTEXITCODE` を確認し、非ゼロなら `throw` してから `cmd2` を実行する（例: `cmd1; if ($LASTEXITCODE -ne 0) { throw "cmd1 failed: $LASTEXITCODE" }; cmd2`）。
   - パスに丸括弧 `()` や `$` が含まれる場合は必ずシングルクォート等で囲む（例: `'src/routes/(app)/records/$id.tsx'`）。
-  - パイプライン（`|`）や引数直接渡しによる日本語文字化けを防ぐため、コミットや PR 作成は必ず **UTF-8 一時ファイルを経由** すること（詳細は [`.ai/workflows/git-workflow.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/workflows/git-workflow.md) 参照）。
+  - パイプライン（`|`）や引数直接渡しによる日本語文字化けを防ぐため、コミットや PR 作成は必ず **UTF-8 一時ファイルを経由** すること（詳細は [`.ai/workflows/git-workflow.md`](./.ai/workflows/git-workflow.md) 参照）。
 - **Package Manager**: `pnpm`（`npm`, `yarn` は使用禁止）。
 
 ---
@@ -61,14 +61,14 @@
 
 - **Format**: Conventional Commits 形式に従う（`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`）。
 - **Body**: 必ず日本語で「なぜこの変更を行ったか」「どのような影響があるか」を明記。
-- **PowerShell 実行手順**: 日本語文字化けおよびエスケープ破壊防止のため、必ず UTF-8 一時ファイルを経由する。具体的なテンプレートスクリプトは [`.ai/workflows/git-workflow.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/workflows/git-workflow.md) を参照。
+- **PowerShell 実行手順**: 日本語文字化けおよびエスケープ破壊防止のため、必ず UTF-8 一時ファイルを経由する。具体的なテンプレートスクリプトは [`.ai/workflows/git-workflow.md`](./.ai/workflows/git-workflow.md) を参照。
 
 ---
 
 ## 5. Documentation Update Check Before Commit
 
 - コード変更や機能追加時、関連ドキュメント（要件定義、詳細設計、デザイン、脅威モデル、セキュリティモデル、`.ai/`）の更新要否を必ず確認する。
-- 複数ファイル・セクションへの波及確認手順およびマトリクス表は [`.ai/workflows/doc-sync.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/workflows/doc-sync.md) を参照。
+- 複数ファイル・セクションへの波及確認手順およびマトリクス表は [`.ai/workflows/doc-sync.md`](./.ai/workflows/doc-sync.md) を参照。
 
 ---
 
@@ -89,12 +89,12 @@ poohma/                    # ルート（Turborepo）
 
 ## 7. Working with `.ai/`（事前参照マトリクス）
 
-タスク着手時は、以下のマトリクスに従って関連ドキュメント（ピンポイントな小ファイル）を必ず事前に参照し、不変条件に抵触しないかを事前審査してください。詳細な設計思想は [`.ai/README.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/README.md) を参照。
+タスク着手時は、以下のマトリクスに従って関連ドキュメント（ピンポイントな小ファイル）を必ず事前に参照し、不変条件に抵触しないかを事前審査してください。詳細な設計思想は [`.ai/README.md`](./.ai/README.md) を参照。
 
 | 作業フェーズ / タスク種別 | 必須事前参照ファイル | 特に確認すべき項目・不変条件 |
 | :--- | :--- | :--- |
-| **外部レビュー（CodeRabbit等）対応** | [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md)<br>[`.ai/pitfalls/review-and-guardrails.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/review-and-guardrails.md) | ・トースト/UIへの生エラー非露出<br>・過剰防衛コードの排除（KISS原則）<br>・PoohMa固有の不変条件を優先 |
-| **エラーハンドリング・例外処理実装** | [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) (第5節) | ・`toast.error(固定メッセージ)` 徹底<br>・ブラウザ側 `console.error` 等への生例外オブジェクト非露出（CWE-209、暗号鍵保護） |
-| **スキーマ変更・DBマイグレーション** | [`.ai/domain.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/domain.md)<br>[`.ai/patterns.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/patterns.md)<br>[`.ai/pitfalls/review-and-guardrails.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/review-and-guardrails.md) | ・手動ワンショット移行（CLI）運用<br>・アプリ側に未バックフィル検査ガードを混入させない（自然なフォールバック） |
-| **E2E / ユニットテスト作成・改修** | [`.ai/testing.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/testing.md)<br>[`.ai/pitfalls/e2e-testing.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/e2e-testing.md) | ・テスト失敗時のプロダクションコード改変禁止<br>・`convex dev --once` のワンショット実行<br>・家族状態によるUI分岐やAdminフォールバック |
-| **認証・セッション・暗号(E2EE)** | [`.ai/invariants.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/invariants.md) (1〜4節)<br>[`.ai/pitfalls/auth-session.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/auth-session.md)<br>[`.ai/pitfalls/crypto-e2ee.md`](file:///c:/Users/lutha/Documents/Code/poohma-start/.ai/pitfalls/crypto-e2ee.md) | ・長期セッションの Single Source of Truth（Firebase Auth）<br>・Session Cookie の位置付け<br>・鍵階層（DEK / MasterKey / PRF）の破壊防止 |
+| **外部レビュー（CodeRabbit等）対応** | [`.ai/invariants.md`](./.ai/invariants.md)<br>[`.ai/pitfalls/review-and-guardrails.md`](./.ai/pitfalls/review-and-guardrails.md) | ・トースト/UIへの生エラー非露出<br>・過剰防衛コードの排除（KISS原則）<br>・PoohMa固有の不変条件を優先 |
+| **エラーハンドリング・例外処理実装** | [`.ai/invariants.md`](./.ai/invariants.md) (第5節) | ・`toast.error(固定メッセージ)` 徹底<br>・ブラウザ側 `console.error` 等への生例外オブジェクト非露出（CWE-209、暗号鍵保護） |
+| **スキーマ変更・DBマイグレーション** | [`.ai/domain.md`](./.ai/domain.md)<br>[`.ai/patterns.md`](./.ai/patterns.md)<br>[`.ai/pitfalls/review-and-guardrails.md`](./.ai/pitfalls/review-and-guardrails.md) | ・手動ワンショット移行（CLI）運用<br>・アプリ側に未バックフィル検査ガードを混入させない（自然なフォールバック） |
+| **E2E / ユニットテスト作成・改修** | [`.ai/testing.md`](./.ai/testing.md)<br>[`.ai/pitfalls/e2e-testing.md`](./.ai/pitfalls/e2e-testing.md) | ・テスト失敗時のプロダクションコード改変禁止<br>・`convex dev --once` のワンショット実行<br>・家族状態によるUI分岐やAdminフォールバック |
+| **認証・セッション・暗号(E2EE)** | [`.ai/invariants.md`](./.ai/invariants.md) (1〜4節)<br>[`.ai/pitfalls/auth-session.md`](./.ai/pitfalls/auth-session.md)<br>[`.ai/pitfalls/crypto-e2ee.md`](./.ai/pitfalls/crypto-e2ee.md) | ・長期セッションの Single Source of Truth（Firebase Auth）<br>・Session Cookie の位置付け<br>・鍵階層（DEK / MasterKey / PRF）の破壊防止 |
