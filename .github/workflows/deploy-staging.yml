@@ -1,13 +1,13 @@
 name: Deploy to Staging
 
 on:
-  push:
-    branches-ignore:
-      - main # 本番ブランチ以外のプッシュで起動
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 
 permissions:
   contents: read
+  pull-requests: write
 
 # 同時デプロイ時の競合・順序逆転を防止
 concurrency:
@@ -53,14 +53,32 @@ jobs:
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy to Vercel and Assign Alias
+        id: deploy
         run: |
           DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz --token=${{ secrets.VERCEL_TOKEN }})
-          vercel alias set $DEPLOY_URL ${{ secrets.VERCEL_ALIAS_STAGING }} --token=${{ secrets.VERCEL_TOKEN }}
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          vercel alias set "$DEPLOY_URL" "${{ secrets.VERCEL_ALIAS_STAGING }}" --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Comment or Update PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: always() # デプロイの成功・失敗にかかわらず実行
+        with:
+          header: staging-deploy-status
+          message: |
+            ## 🚀 Staging Deployment Result
+
+            | Parameter | Status / Value |
+            | :--- | :--- |
+            | **Status** | ${{ steps.deploy.outcome == 'success' && '✅ Succeeded' || '❌ Failed' }} |
+            | **Preview URL** | ${{ steps.deploy.outputs.deploy_url || 'N/A' }} |
+            | **Commit Hash** | `${{ github.event.pull_request.head.sha }}` |
+            | **Branch** | `${{ github.head_ref }}` |
+
+            ---
+            *Updated at: ${{ github.event.repository.updated_at }}*
 
   e2e:
     name: Run Staging E2E
     needs: deploy
     uses: ./.github/workflows/e2e-staging.yml
     secrets: inherit
-
-
