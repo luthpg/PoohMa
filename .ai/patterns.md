@@ -381,7 +381,7 @@ PoohMa はITリテラシーを問わず家族全員が利用するサービス�
 - **クレデンシャル列グループ化**: `CredentialId{n}`, `Label{n}`, `LoginID{n}`, `PasswordHint{n}`（`n` = 1〜10）の番号サフィックスからグループを構築。
 
 ### 2. 最小権限の差分突合 (`getRecordsForDiffImport`)
-- 突合に必要な平文メタデータ（`stableId`, `title`, `url`, `memo`, `ownerType`, `admins`, `tags`, `credentials.stableId/label/loginId/hasPasswordHint`）のみを取得。暗号化フィールド（密文・IV・DEK）は取得せず、帯域とクライアント負荷を最小化。
+- 突合に必要な平文メタデータ（`stableId`, `title`, `url`, `memo`, `ownerType`, `adminEmails`, `tags`, `credentials.stableId/label/loginId/hasPasswordHint`）のみを取得。暗号化フィールド（密文・IV・DEK）は取得せず、帯域とクライアント負荷を最小化。
 
 ### 3. E2EE整合性と空セル値保護
 - **空セル値維持 (SKIP)**: CSV側のセルが空の場合は既存値を維持し、誤操作によるデータ消去を防止。

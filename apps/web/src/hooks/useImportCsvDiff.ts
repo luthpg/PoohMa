@@ -126,6 +126,17 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
         });
 
         const data = parseResult.data;
+        const fatalParseError = parseResult.errors?.find(
+          (error) => error.type === "Quotes" || error.type === "FieldMismatch",
+        );
+        if (fatalParseError) {
+          toast.error(`CSVの形式が不正です: ${fatalParseError.message}`, {
+            id: IMPORT_TOAST_ID,
+          });
+          setIsAnalyzing(false);
+          return;
+        }
+
         if (!data || data.length === 0) {
           toast.error("CSVファイルにデータが含まれていません。", {
             id: IMPORT_TOAST_ID,
@@ -568,6 +579,21 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
                 credentials,
               };
             } else if (item.action === "UPDATE") {
+              const updatedTitle = (row.Title || "").trim();
+              let updatedTitleReading: string | undefined;
+              if (updatedTitle && item.changedFields.includes("Title")) {
+                try {
+                  const reading = await convex.action(api.actions.getFurigana, {
+                    text: updatedTitle,
+                  });
+                  if (reading && reading !== updatedTitle) {
+                    updatedTitleReading = reading;
+                  }
+                } catch {
+                  // ルビ取得失敗は無視
+                }
+              }
+
               const credentials = [];
               for (let cIdx = 1; cIdx <= MAX_CREDENTIALS_PER_RECORD; cIdx++) {
                 const credId = (row[`CredentialId${cIdx}`] || "").trim();
@@ -632,7 +658,10 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
               if (item.stableId) {
                 item.updatePayload = {
                   stableId: item.stableId,
-                  title: (row.Title || "").trim() || undefined,
+                  title: updatedTitle || undefined,
+                  titleReading: item.changedFields.includes("Title")
+                    ? updatedTitleReading
+                    : undefined,
                   url: (row.URL || "").trim() || undefined,
                   memo: (row.Memo || "").trim() || undefined,
                   ownerType,
@@ -674,7 +703,9 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
   );
 
   const applyDiff = useCallback(
-    async (selectedIndices: Set<number>) => {
+    async (
+      selectedIndices: Set<number>,
+    ): Promise<{ createdCount: number; updatedCount: number } | null> => {
       setIsApplying(true);
       toast.loading("変更内容をデータベースに反映中...", {
         id: APPLY_TOAST_ID,
@@ -696,8 +727,7 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
 
         if (creates.length === 0 && updates.length === 0) {
           toast.info("反映対象のデータがありません。", { id: APPLY_TOAST_ID });
-          setIsApplying(false);
-          return;
+          return null;
         }
 
         const result = await applyImportDiffMutation({
@@ -711,11 +741,16 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
           { id: APPLY_TOAST_ID },
         );
         reset();
+        return {
+          createdCount: result.createdCount,
+          updatedCount: result.updatedCount,
+        };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "不明なエラー";
         toast.error(`反映処理中にエラーが発生しました: ${message}`, {
           id: APPLY_TOAST_ID,
         });
+        return null;
       } finally {
         setIsApplying(false);
       }

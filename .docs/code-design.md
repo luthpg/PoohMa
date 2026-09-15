@@ -836,7 +836,6 @@ DEKは credentials.passwordHintDekEncrypted / passwordHintDekIv として保存�
 | addRecordAdmin / removeRecordAdmin | Mutation | recordAdmin | 共有レコードの個別管理者（一般メンバー）の追加・解除（管理者限定・管理者変更通知メール送信。ファミリー管理者の冗長追加は防止） |
 | bulkSetRecordAdmin | Mutation | familyBound | 選択した共有レコード群に対して個別管理者の追加／解除を一括適用（管理者限定） |
 | bulkShareRecords / bulkUnshareRecords | Mutation | familyBound | 選択した個人レコードの一括共有 / 共有レコードの一括共有解除（isRecordAdminで認可検証） |
-| previewCsvImport | Query/Action | familyBound | インポート予定のCSV行と既存データ（URL＋タイトルで突合）を比較し、行ごとに新規／上書き／スキップを判定して返す（FR-CSV-07、9.7参照） |
 | getRecordsForDiffImport | Query | authenticated | CSV差分インポート突合用にアクセス可能なレコード一覧を軽量取得（暗号化フィールドは除外、最小権限原則） |
 | applyImportDiff | Mutation | familyBound | CSV差分プレビューで承認された新規登録・更新を一括反映（家族境界・管理者認可検証、非空フィールドのみ更新、監査ログ記録） |
 | createRecord | Mutation | familyBound | レコード新規作成（zodによるサーバー再検証、sortKey自動算出、ownerType: "user" \| "family"、credentials最大10件チェック、stableId自動生成、revision: 0初期化） |
@@ -1056,16 +1055,17 @@ PoohMaのUIは、Vercelのデザインシステム（Geist）を参考にした�
 8. 放置された期限切れセッション（TTL 5分超過）は、1分間隔の定期cron（cleanupExpiredEditingSessionsInternal）によって自動削除される（1回最大500件バッチ）
 ```
 
-### 9.7 CSVインポートのプレビュー（FR-CSV-07）
+### 9.7 CSV差分インポートのプレビューと反映（FR-CSV-07、14章参照）
 
 ```txt
-1. CSVファイル選択・パース後、確定ボタンを押す前に Query/Action previewCsvImport を呼び出す
-2. サーバー側で、各行のURL＋タイトルを既存の自分のレコードと突合し、
-   「新規／上書き／スキップ」を判定した結果を返す
-3. クライアントは判定結果を一覧としてプレビュー表示し、ユーザーが行単位で
-   インポート対象から除外できるようにする
-4. ユーザーが確定操作を行った時点で、9.2のインポートフロー（ロック解除→暗号化→
-   importRecords呼び出し）へ進む
+1. CSVファイル選択・パース後、クライアント側で Query getRecordsForDiffImport を呼び出して
+   突合用の平文メタデータ一覧（stableId, title, url, memo, adminEmails, tags等）を軽量取得
+2. useImportCsvDiff が各行の RecordId / CredentialId（stableId）および内容を突合し、
+   「新規追加（CREATE）／内容を変更（UPDATE）／変更なし（SKIP）／エラー（ERROR）」を行・クレデンシャル単位で自動判定
+3. クライアントは判定結果を仮想スクロールテーブル（CsvImportPreviewTable）でプレビュー表示し、
+   行ごとのBefore/After差分確認や、個別チェックボックスおよび「エラー行を除外」トグルによる選択的反映を可能にする
+4. ユーザーが確定操作を行った時点で、新規・変更項目のヒント暗号化を行い、
+   Mutation applyImportDiff を呼び出して選択行を一括トランザクションで安全に反映する
 ```
 
 ## 10. SSRF対策設計（OGP取得機能, src/utils/url-safety.ts）
@@ -1157,7 +1157,9 @@ convex/crons.ts に登録されている定期ジョブ一覧:
 
 ### 14.2 CSVフォーマット・列定義
 - **ファイル形式**: UTF-8 BOM付きCSV（Excelでの文字化けを防止）。
-- **列順序（位置）**: 可変（順不同）。PapaParse（`header: true`）により1行目のヘッダー名でマッピング。
+- **列順序（位置）**:
+  - **CSVエクスポートの出力列順**: `RecordId` を先頭列に固定して出力（FR-CSV-01）。
+  - **CSVインポートの入力列順**: 物理的な列順序は可変（順不同）。PapaParse（`header: true`）により1行目のヘッダー名で各項目へマッピング（FR-CSV-03）。
 - **列マッピング**:
   - `RecordId`: サービスレコードの安定ID（UUID v4、`serviceRecords.stableId`）。空欄の場合は新規作成（CREATE）扱い。
   - `Title`: サービス名（必須、最大100文字）。
@@ -1176,7 +1178,7 @@ convex/crons.ts に登録されている定期ジョブ一覧:
 | 条件 | 判定 | 処理内容 |
 | :--- | :---: | :--- |
 | `RecordId` が空 または 列なし | **CREATE** | 新規レコードとして登録（`stableId` を自動生成、OGP/ふりがな取得、ヒント暗号化） |
-| `RecordId` があり、DBに存在する | **UPDATE / SKIP** | 各フィールドを比較。差分があれば UPDATE、全項目一致またはCSV側が空白なら SKIP |
+| `RecordId` があり、DBに存在する | **UPDATE / SKIP** | 各フィールドを比較。差分があれば UPDATE、全比較項目が一致する場合または更新対象の非空フィールドがない場合は SKIP。空セルは各フィールドで既存値を維持 |
 | `RecordId` があり、DBに存在しない | **ERROR** | エラー理由:「指定された RecordId のレコードが見つかりません」 |
 | CSV内で同一の `RecordId` が重複 | **ERROR** | エラー理由:「CSV内で RecordId が重複しています」 |
 | `CredentialId` が別のレコードに属している | **ERROR** | エラー理由:「CredentialId が別のレコードに紐づいています」 |

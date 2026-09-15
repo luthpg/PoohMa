@@ -2238,16 +2238,16 @@ export const applyImportDiff = familyBoundMutation({
 
       if (item.title !== undefined) {
         patchData.title = item.title;
-        patchData.sortKey = computeSortKey({
-          titleReading: item.titleReading ?? record.titleReading,
-          title: item.title,
-        });
-      }
-      if (item.titleReading !== undefined) {
         patchData.titleReading = item.titleReading;
         patchData.sortKey = computeSortKey({
           titleReading: item.titleReading,
-          title: item.title ?? record.title,
+          title: item.title,
+        });
+      } else if (item.titleReading !== undefined) {
+        patchData.titleReading = item.titleReading;
+        patchData.sortKey = computeSortKey({
+          titleReading: item.titleReading,
+          title: record.title,
         });
       }
       if (item.url !== undefined) patchData.url = item.url;

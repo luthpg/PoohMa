@@ -42,17 +42,13 @@ function BulkSettingsPage() {
   });
 
   const handleApplyWithStats = async (selectedIndices: Set<number>) => {
-    // 反映前の統計を計算
-    let created = 0;
-    let updated = 0;
-    for (const idx of selectedIndices) {
-      const item = diffItems[idx];
-      if (item?.action === "CREATE") created++;
-      else if (item?.action === "UPDATE") updated++;
+    const result = await applyDiff(selectedIndices);
+    if (result) {
+      setCompletedStats({
+        created: result.createdCount,
+        updated: result.updatedCount,
+      });
     }
-
-    await applyDiff(selectedIndices);
-    setCompletedStats({ created, updated });
   };
 
   const handleResetAll = () => {
