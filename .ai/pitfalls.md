@@ -28,3 +28,4 @@ AI Agent が誤りやすい点、過去に問題となった点、実装上の�
 - **Session Cookie / ログアウト**: [`.ai/pitfalls/auth-session.md`](pitfalls/auth-session.md)
 - **Playwright / E2E / テスト失敗**: [`.ai/pitfalls/e2e-testing.md`](pitfalls/e2e-testing.md)
 - **PowerShell / 文字化け / コミット**: [`.ai/pitfalls/environment-shell.md`](pitfalls/environment-shell.md)、[`.ai/workflows/git-workflow.md`](workflows/git-workflow.md)
+- **絶対パス / 相対パス / リンク切れ**: [`.ai/pitfalls/ui-and-misc.md`](pitfalls/ui-and-misc.md)
