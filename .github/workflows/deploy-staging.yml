@@ -9,7 +9,6 @@ permissions:
   contents: read
   pull-requests: write
 
-# 同時デプロイ時の競合・順序逆転を防止
 concurrency:
   group: staging-deploy
   cancel-in-progress: true
@@ -57,11 +56,20 @@ jobs:
         run: |
           DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+
           vercel alias set "$DEPLOY_URL" "${{ secrets.VERCEL_ALIAS_STAGING }}" --token=${{ secrets.VERCEL_TOKEN }}
+          
+          # https:// プレフィックスを考慮してエイリアスURLを出力
+          ALIAS="${{ secrets.VERCEL_ALIAS_STAGING }}"
+          if [[ ! "$ALIAS" =~ ^https?:// ]]; then
+            ALIAS="https://$ALIAS"
+          fi
+          echo "alias_url=$ALIAS" >> "$GITHUB_OUTPUT"
 
       - name: Comment or Update PR
         uses: marocchino/sticky-pull-request-comment@v2
-        if: always() # デプロイの成功・失敗にかかわらず実行
+        # デプロイ成否に関わらず実行しつつ、手動実行(workflow_dispatch)時はPRが存在しないためスキップ
+        if: always() && github.event_name == 'pull_request'
         with:
           header: staging-deploy-status
           message: |
@@ -70,12 +78,14 @@ jobs:
             | Parameter | Status / Value |
             | :--- | :--- |
             | **Status** | ${{ steps.deploy.outcome == 'success' && '✅ Succeeded' || '❌ Failed' }} |
-            | **Preview URL** | ${{ steps.deploy.outputs.deploy_url || 'N/A' }} |
+            | **Fixed URL (Alias)** | ${{ steps.deploy.outputs.alias_url && format('[{0}]({0})', steps.deploy.outputs.alias_url) || 'N/A' }} |
+            | **Preview URL (Hash)** | ${{ steps.deploy.outputs.deploy_url && format('[{0}]({0})', steps.deploy.outputs.deploy_url) || 'N/A' }} |
             | **Commit Hash** | `${{ github.event.pull_request.head.sha }}` |
             | **Branch** | `${{ github.head_ref }}` |
 
             ---
             *Updated at: ${{ github.event.repository.updated_at }}*
+            
 
   e2e:
     name: Run Staging E2E
