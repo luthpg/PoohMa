@@ -277,3 +277,23 @@ flowchart TD
 - **レコード詳細画面** (`routes/(app)/records/$id.tsx`): `RecordAuditHistoryAccordion` コンポーネントが `getRecordAuditLogs`（最大30件）を購読し、アクセス・変更履歴をアコーディオンUIで表示。
 - **家族画面** (`routes/(app)/family.tsx`): `FamilyAuditLogSection` コンポーネントが `getFamilyAuditLogs`（ページネーション）を購読し、家族のアクティビティログをアコーディオンUIで表示。
 - **ヒント閲覧ログ記録**: `CredentialCard` コンポーネントの暗号復号成功時に `logRecordHintView` Mutationを非同期呼び出し（失敗してもUIに影響しない）。
+
+---
+
+## 9. 安定ID (`stableId`) と CSV 差分突合
+
+PoohMa では、CSVエクスポート・インポートを単なるバックアップにとどまらず、手元での一括編集・差分更新ワークフローとして機能させるため、`stableId` を導入している。
+
+### 9.1 `stableId` の役割と不変条件
+- **環境非依存の安定識別子**: Convex の内部不透明ID（`_id`）と異なり、UUID v4 による永続的な識別子を `serviceRecords.stableId` および `credentials.stableId` に付与。
+- **自動生成**: `createRecord`, `importRecords` による新規作成時に必ず `crypto.randomUUID()` で自動生成。
+- **ワンショット・バックフィル**: 既存レコード・クレデンシャルには `migrations:backfillStableIds` によって一括付与（アプリ実行時の遅延パッチは行わない）。
+- **インデックス**: `by_family_stableId`, `by_stableId`, `by_recordId_stableId` により高速な突合を実現。
+
+### 9.2 CSV 差分インポートの判定ルール
+- **CREATE**: `RecordId` が空または列なし。新規レコードとして登録（OGP・ふりがな自動補完、ヒント暗号化）。
+- **UPDATE**: `RecordId` が一致し、DB上の値と差分がある場合。非空セルのみを更新。
+- **SKIP**: 全項目一致、またはCSV側の全セルが空の場合。既存値を維持（空セルによる意図しないデータ削除を完全防止）。
+- **ERROR**: 存在しない `RecordId`、CSV内での重複 `RecordId`、異なるレコードに属する `CredentialId`。
+- **E2EE保護**: PasswordHint が空欄の場合は暗号化処理・パスコードアンロックをスキップし既存暗号ヒントを維持。平文入力時のみ再暗号化を実行。
+

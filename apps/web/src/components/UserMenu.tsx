@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
-import { useConvex, useMutation } from "convex/react";
+import { Link } from "@tanstack/react-router";
 import { signOut } from "firebase/auth";
 import {
   ArrowLeft,
@@ -8,7 +7,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Download,
+  Database,
   Gavel,
   HelpCircle,
   Laptop,
@@ -20,14 +19,10 @@ import {
   Plus,
   ScrollText,
   Sun,
-  Upload,
   UserCog,
   Users,
 } from "lucide-react";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
-import { api } from "@/../convex/_generated/api";
-import { usePasscode } from "@/components/PasscodeProvider";
+import { useState } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
@@ -61,14 +56,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Spinner } from "@/components/ui/spinner";
 import { useAccount } from "@/hooks/useAccount";
 import { LOGOUT_FLAG_KEY } from "@/hooks/useConvexFirebaseAuth";
-import { useExportCsv } from "@/hooks/useExportCsv";
 import { clearQueryCache } from "@/hooks/usePersistentQuery";
 import { cn } from "@/lib/utils";
 import { logout } from "@/services/auth.functions";
-import { processInChunks } from "@/utils/chunk-processor";
 import { auth } from "@/utils/firebase";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 
@@ -81,9 +73,7 @@ export function UserMenu({
     photoURL?: string | null;
   };
 }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const convex = useConvex();
   const { theme, setTheme } = useTheme();
 
   // マルチアカウント管理
@@ -95,19 +85,9 @@ export function UserMenu({
 
   // モバイルSheet用ステート
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isMobileDataOpen, setIsMobileDataOpen] = useState(false);
   const [isMobileThemeOpen, setIsMobileThemeOpen] = useState(false);
   // モバイルでの表示ビュー ("main" = 通常メニュー, "accounts" = アカウント切り替えドリルダウン)
   const [mobileView, setMobileView] = useState<"main" | "accounts">("main");
-
-  // CSVエクスポート・インポート関連
-  const [isImporting, setIsImporting] = useState(false);
-  const { handleExport, isExporting } = useExportCsv();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const importRecordsMut = useMutation(api.records.importRecords);
-
-  // 暗号化関連
-  const { masterKey, requireUnlock, encryptHint } = usePasscode();
 
   const displayName =
     activeAccount?.displayName || user?.displayName || "ユーザー";
@@ -128,222 +108,6 @@ export function UserMenu({
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const toastId = toast.loading("CSVを解析中...");
-    setIsImporting(true);
-    const Papa = (await import("papaparse")).default;
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          toast.loading("データを処理中...", { id: toastId });
-          const data = results.data as Record<string, string>[];
-
-          if (data.length > 500) {
-            toast.error(
-              "一度にインポートできるデータは最大500行までです。ファイルを分割して再度お試しください。",
-              { id: toastId, duration: 8000 },
-            );
-            setIsImporting(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
-          }
-
-          // --- 早期バリデーション (Fail Fast) ---
-          const isOversized = data.some((row) =>
-            Object.values(row).some((val) => val && val.length > 10000),
-          );
-          if (isOversized) {
-            toast.error(
-              "文字数が上限（10,000文字）を超えているフィールドが含まれています。",
-              { id: toastId, duration: 8000 },
-            );
-            setIsImporting(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
-          }
-
-          let hasHintsToEncrypt = false;
-          for (const row of data) {
-            for (let i = 1; i <= 10; i++) {
-              if (row[`PasswordHint${i}`]) {
-                hasHintsToEncrypt = true;
-                break;
-              }
-            }
-            if (hasHintsToEncrypt) break;
-          }
-
-          if (hasHintsToEncrypt && !masterKey) {
-            const unlocked = await requireUnlock();
-            if (!unlocked) {
-              toast.dismiss(toastId);
-              setIsImporting(false);
-              if (fileInputRef.current) fileInputRef.current.value = "";
-              return;
-            }
-          }
-
-          const encryptedData = await processInChunks(
-            data,
-            async (row) => {
-              const newRow = { ...row };
-
-              // OGP情報を取得（既に画像や説明がある場合はスキップ）
-              if (newRow.URL && !newRow.ogpImage && !newRow.ogpDescription) {
-                try {
-                  const ogp = await convex.action(api.actions.getOgpInfo, {
-                    url: newRow.URL,
-                  });
-                  if (ogp.image) newRow.ogpImage = ogp.image;
-                  if (ogp.description) newRow.ogpDescription = ogp.description;
-                  if (ogp.title && !newRow.Title) newRow.Title = ogp.title;
-                } catch {
-                  // OGP取得失敗は無視して続行
-                }
-              }
-
-              // ルビ情報の取得（Titleがあり、かつ未設定の場合）
-              if (newRow.Title && !newRow.titleReading) {
-                try {
-                  const reading = await convex.action(api.actions.getFurigana, {
-                    text: newRow.Title,
-                  });
-                  if (reading && reading !== newRow.Title) {
-                    newRow.titleReading = reading;
-                  }
-                } catch {
-                  // ルビ取得失敗は無視して続行
-                }
-              }
-
-              for (let i = 1; i <= 10; i++) {
-                const hint = newRow[`PasswordHint${i}`];
-                if (hint) {
-                  const { encrypted, iv, dekEncrypted, dekIv } =
-                    await encryptHint(hint);
-                  newRow[`PasswordHint${i}`] = encrypted;
-                  newRow[`PasswordHintIv${i}`] = iv;
-                  newRow[`PasswordHintDekEncrypted${i}`] = dekEncrypted;
-                  newRow[`PasswordHintDekIv${i}`] = dekIv;
-                }
-              }
-              return newRow;
-            },
-            10, // 10件ごとにスレッドを解放
-            (current, total) => {
-              toast.loading(`データを処理中... (${current}/${total})`, {
-                id: toastId,
-              });
-            },
-          );
-
-          const recordsToImport = encryptedData.map((row) => {
-            const credentials = [];
-            for (let i = 1; i <= 10; i++) {
-              const label = row[`Label${i}`];
-              const loginId = row[`LoginID${i}`];
-              const passwordHint = row[`PasswordHint${i}`];
-              const passwordHintIv = row[`PasswordHintIv${i}`];
-              const passwordHintDekEncrypted =
-                row[`PasswordHintDekEncrypted${i}`];
-              const passwordHintDekIv = row[`PasswordHintDekIv${i}`];
-              if (label || loginId || passwordHint) {
-                credentials.push({
-                  id: crypto.randomUUID(),
-                  label: String(label || "") || undefined,
-                  loginId: String(loginId || "") || undefined,
-                  passwordHint: String(passwordHint || "") || undefined,
-                  passwordHintIv: passwordHintIv
-                    ? String(passwordHintIv)
-                    : undefined,
-                  passwordHintDekEncrypted: passwordHintDekEncrypted
-                    ? String(passwordHintDekEncrypted)
-                    : undefined,
-                  passwordHintDekIv: passwordHintDekIv
-                    ? String(passwordHintDekIv)
-                    : undefined,
-                });
-              }
-            }
-            const tags =
-              typeof row.Tags === "string"
-                ? row.Tags.split(",")
-                    .map((t: string) => t.trim())
-                    .filter(Boolean)
-                : [];
-            return {
-              title: String(row.Title || ""),
-              titleReading: row.titleReading
-                ? String(row.titleReading)
-                : undefined,
-              url: row.URL ? String(row.URL) : undefined,
-              ogpImage: row.ogpImage ? String(row.ogpImage) : undefined,
-              ogpDescription: row.ogpDescription
-                ? String(row.ogpDescription)
-                : undefined,
-              memo: row.Memo ? String(row.Memo) : undefined,
-              ownerType: (row.OwnerType === "family" ? "family" : "user") as
-                | "user"
-                | "family",
-              adminEmails:
-                typeof row.Admins === "string" && row.Admins.trim()
-                  ? row.Admins.split(",")
-                      .map((a: string) => a.trim())
-                      .filter(Boolean)
-                  : undefined,
-              credentials,
-              tags,
-            };
-          });
-
-          const response = await importRecordsMut({
-            accountId: activeAccountId || undefined,
-            records: recordsToImport,
-          });
-
-          if (response.failures && response.failures.length > 0) {
-            toast.error(
-              <div className="flex flex-col gap-1">
-                <p className="font-semibold">
-                  {response.successes}件成功、{response.failures.length}件失敗
-                </p>
-                <ul className="max-h-32 overflow-y-auto text-xs space-y-1 mt-1 opacity-90 list-disc list-inside">
-                  {response.failures.map((f) => (
-                    <li key={`failure-${f.row}`}>
-                      {f.row}行目: {f.reason}
-                    </li>
-                  ))}
-                </ul>
-              </div>,
-              { id: toastId, duration: 10000 },
-            );
-          } else {
-            toast.success(
-              `${response.successes}件のデータをインポートしました`,
-              { id: toastId },
-            );
-          }
-          await router.invalidate();
-        } catch {
-          toast.error("インポートに失敗しました", { id: toastId });
-        } finally {
-          setIsImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-      },
-      error: () => {
-        toast.error("CSVファイルの読み込みに失敗しました", { id: toastId });
-        setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      },
-    });
-  };
-
   const avatarButton = (
     <button
       type="button"
@@ -361,15 +125,6 @@ export function UserMenu({
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".csv"
-        className="hidden"
-        data-testid="csv-file-input"
-      />
-
       {/* ========================================================= */}
       {/* モバイル表示 (Sheet)        */}
       {/* ========================================================= */}
@@ -464,63 +219,16 @@ export function UserMenu({
 
                 <div className="h-[1px] bg-border/50" />
 
-                {/* データ管理 (折りたたみ) */}
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileDataOpen(!isMobileDataOpen)}
-                    className="flex w-full items-center justify-between px-1 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+                {/* データ管理 */}
+                <div>
+                  <Link
+                    to="/settings/bulk"
+                    onClick={() => setIsSheetOpen(false)}
+                    className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-accent text-sm font-medium transition cursor-pointer"
                   >
-                    <span>データ管理 (CSV)</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform duration-200",
-                        isMobileDataOpen ? "rotate-180" : "",
-                      )}
-                    />
-                  </button>
-                  {isMobileDataOpen && (
-                    <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in-50 duration-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSheetOpen(false);
-                          handleExport();
-                        }}
-                        disabled={isExporting}
-                        className="flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-card hover:bg-accent text-xs font-medium transition cursor-pointer"
-                      >
-                        {isExporting ? (
-                          <Spinner className="h-4 w-4" />
-                        ) : (
-                          <Download className="h-4 w-4 text-blue-500" />
-                        )}
-                        <span>
-                          {isExporting
-                            ? "エクスポート中..."
-                            : "CSVエクスポート"}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSheetOpen(false);
-                          fileInputRef.current?.click();
-                        }}
-                        disabled={isImporting}
-                        className="flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-card hover:bg-accent text-xs font-medium transition cursor-pointer"
-                      >
-                        {isImporting ? (
-                          <Spinner className="h-4 w-4" />
-                        ) : (
-                          <Upload className="h-4 w-4 text-green-500" />
-                        )}
-                        <span>
-                          {isImporting ? "インポート中..." : "CSVインポート"}
-                        </span>
-                      </button>
-                    </div>
-                  )}
+                    <Database className="h-5 w-5 text-orange-500" />
+                    <span>データ管理（CSV）</span>
+                  </Link>
                 </div>
 
                 <div className="h-[1px] bg-border/50" />
@@ -887,30 +595,12 @@ export function UserMenu({
             <DropdownMenuSeparator />
 
             {/* データ管理 */}
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal py-1">
-              データ管理
-            </DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={handleExport} disabled={isExporting}>
-                {isExporting ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4 text-blue-500" />
-                )}
-                <span>
-                  {isExporting ? "エクスポート中..." : "CSVエクスポート"}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-              >
-                {isImporting ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Upload className="mr-2 h-4 w-4 text-green-500" />
-                )}
-                <span>{isImporting ? "インポート中..." : "CSVインポート"}</span>
+              <DropdownMenuItem asChild>
+                <Link to="/settings/bulk" className="cursor-pointer">
+                  <Database className="mr-2 h-4 w-4 text-orange-500" />
+                  <span>データ管理（CSV）</span>
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

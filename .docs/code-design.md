@@ -291,6 +291,7 @@ users     0..* ── * auditLogs         (auditLogs.accountId → users._id, op
 
 | フィールド | 型 | 説明 |
 | --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| stableId | string(optional) | CSVエクスポート・差分インポート突合用の安定識別子（UUID v4）。全件バックフィル完了後は実質必須 |
 | title | string | サービス名 |
 | titleReading | string(optional) | 読み仮名（五十音インデックス用） |
 | sortKey | string(optional) | 五十音順・アルファベット順ソートキー（グループ順位 2 桁ゼロ埋めプレフィックス + NFKC/ひらがな正規化文字列）。backfill 完了までは optional |
@@ -317,7 +318,7 @@ users     0..* ── * auditLogs         (auditLogs.accountId → users._id, op
 | isSample | boolean(optional) | サンプルデータフラグ（オンボーディング用のサンプルレコードはtrue） |
 | updatedAt | number | 更新日時 |
 
-インデックス: by_family_sortKey, by_family_isSample, by_ownerType_accountId, by_ownerType_ownerFamilyId, by_userId, by_accountId, by_family_updatedAt, by_ownerType_accountId_updatedAt
+インデックス: by_family_sortKey, by_family_isSample, by_ownerType_accountId, by_ownerType_ownerFamilyId, by_userId, by_accountId, by_family_updatedAt, by_ownerType_accountId_updatedAt, by_family_stableId, by_stableId
 
 #### credentials
 
@@ -326,6 +327,7 @@ users     0..* ── * auditLogs         (auditLogs.accountId → users._id, op
 | フィールド | 型 | 説明 |
 | ------------------------ | ---------------------- | ----------------------------------------- |
 | recordId | Id<serviceRecords> | 対象サービスレコード。`serviceRecords._id` を参照する |
+| stableId | string(optional) | CSVエクスポート・差分インポート突合用の安定識別子（UUID v4）。全件バックフィル完了後は実質必須 |
 | label | string(optional) | 認証情報ラベル（平文） |
 | loginId | string(optional) | ログインID（平文でサーバーに保存される） |
 | passwordHint | string(optional) | 暗号化済みパスワードヒント（Base64、E2EE暗号化対象） |
@@ -335,7 +337,7 @@ users     0..* ── * auditLogs         (auditLogs.accountId → users._id, op
 | order | number(optional) | 同一サービスレコード内での表示順 |
 | updatedAt | number | 更新日時 |
 
-インデックス: by\_recordId
+インデックス: by\_recordId, by_recordId_stableId, by_stableId
 
 #### auditLogs（監査ログ）
 
@@ -835,10 +837,13 @@ DEKは credentials.passwordHintDekEncrypted / passwordHintDekIv として保存�
 | bulkSetRecordAdmin | Mutation | familyBound | 選択した共有レコード群に対して個別管理者の追加／解除を一括適用（管理者限定） |
 | bulkShareRecords / bulkUnshareRecords | Mutation | familyBound | 選択した個人レコードの一括共有 / 共有レコードの一括共有解除（isRecordAdminで認可検証） |
 | previewCsvImport | Query/Action | familyBound | インポート予定のCSV行と既存データ（URL＋タイトルで突合）を比較し、行ごとに新規／上書き／スキップを判定して返す（FR-CSV-07、9.7参照） |
-| createRecord | Mutation | familyBound | レコード新規作成（zodによるサーバー再検証、sortKey自動算出、ownerType: "user" \| "family"、credentials最大10件チェック、revision: 0初期化） |
+| getRecordsForDiffImport | Query | authenticated | CSV差分インポート突合用にアクセス可能なレコード一覧を軽量取得（暗号化フィールドは除外、最小権限原則） |
+| applyImportDiff | Mutation | familyBound | CSV差分プレビューで承認された新規登録・更新を一括反映（家族境界・管理者認可検証、非空フィールドのみ更新、監査ログ記録） |
+| fetchRecordsForExport | Query | familyBound | CSVエクスポート用に自分がオーナーである全レコードおよびクレデンシャル（stableId含む）を取得 |
+| createRecord | Mutation | familyBound | レコード新規作成（zodによるサーバー再検証、sortKey自動算出、ownerType: "user" \| "family"、credentials最大10件チェック、stableId自動生成、revision: 0初期化） |
 | updateRecord | Mutation | familyBound | レコード更新（requireAdminAccessチェックにより閲覧専用メンバーによる更新を防止、sortKey再算出、共有解除時は管理者権限を要求、revisionによる楽観的ロック競合検証、forceフラグによる強制上書き、完了時セッション自動削除） |
 | deleteRecord / deleteRecords | Mutation | familyBound | 単体／一括削除（requireAdminAccessチェック、非管理者の共有レコード削除を防止） |
-| importRecords | Mutation | familyBound | CSVインポート（最大500件、家族内メールアドレスの厳格突合、行ごとのバリデーション結果を返却、revision: 0初期化） |
+| importRecords | Mutation | familyBound | CSVインポート（全件新規作成、最大500件、家族内メールアドレスの厳格突合、行ごとのバリデーション結果を返却、stableId自動生成、revision: 0初期化） |
 | bulkUpdateRecords | Mutation | familyBound | 一括タグ付与／所有設定変更（所有設定変更は確認モーダルを経由） |
 | togglePin | Mutation | familyBound | isPinnedの切り替え（FR-REC-18） |
 | archiveRecord / unarchiveRecord | Mutation | familyBound | isArchivedの切り替え（FR-REC-23） |
@@ -1146,7 +1151,70 @@ convex/crons.ts に登録されている定期ジョブ一覧:
 | Yahoo!テキスト解析API | サービス名からのふりがな自動生成 | アプリケーションID |
 | Cloudflare Workers / R2 | Convexデータの定期自動バックアップ（日次） | Cloudflare Secret（`CONVEX_DEPLOY_KEY`） |
 
-## 14. 環境変数一覧
+## 14. CSVエクスポート・インポート仕様
+
+### 14.1 概要・目的
+ユーザーが登録したサービスレコードおよび付随するクレデンシャル（最大10件/行）を一括で手元にバックアップ（CSVエクスポート）し、必要に応じて編集した上で再度取り込むことで既存レコードの一括差分更新（UPDATE）や新規追加（CREATE）を安全に行える機能。
+
+### 14.2 CSVフォーマット・列定義
+- **ファイル形式**: UTF-8 BOM付きCSV（Excelでの文字化けを防止）。
+- **列順序（位置）**: 可変（順不同）。PapaParse（`header: true`）により1行目のヘッダー名でマッピング。
+- **列マッピング**:
+  - `RecordId`: サービスレコードの安定ID（UUID v4、`serviceRecords.stableId`）。空欄の場合は新規作成（CREATE）扱い。
+  - `Title`: サービス名（必須、最大100文字）。
+  - `URL`: サービスURL（任意、最大2,048文字）。
+  - `Memo`: メモ（任意、最大10,000文字）。
+  - `OwnerType`: 所有種別（`"user"` または `"family"`）。
+  - `Admins`: 個別管理者のメールアドレス一覧（カンマ区切り）。
+  - `Tags`: タグ一覧（カンマ区切り）。
+  - `CredentialId{n}`（`n` = 1〜10）: クレデンシャルの安定ID（UUID v4、`credentials.stableId`）。
+  - `Label{n}`: アカウント表示ラベル（任意、最大50文字）。
+  - `LoginID{n}`: ログインID / メールアドレス（任意、平文）。
+  - `PasswordHint{n}`: パスワードのヒント（任意、平文入力。インポート時にE2EE暗号化）。
+- **未知の列**: 定義外の列が存在しても無視（スキップ）して処理を継続。
+
+### 14.3 差分判定・更新マトリクス
+| 条件 | 判定 | 処理内容 |
+| :--- | :---: | :--- |
+| `RecordId` が空 または 列なし | **CREATE** | 新規レコードとして登録（`stableId` を自動生成、OGP/ふりがな取得、ヒント暗号化） |
+| `RecordId` があり、DBに存在する | **UPDATE / SKIP** | 各フィールドを比較。差分があれば UPDATE、全項目一致またはCSV側が空白なら SKIP |
+| `RecordId` があり、DBに存在しない | **ERROR** | エラー理由:「指定された RecordId のレコードが見つかりません」 |
+| CSV内で同一の `RecordId` が重複 | **ERROR** | エラー理由:「CSV内で RecordId が重複しています」 |
+| `CredentialId` が別のレコードに属している | **ERROR** | エラー理由:「CredentialId が別のレコードに紐づいています」 |
+| `CredentialId` が空で Label/Login/Hint あり | **CREATE (Cred)** | 既存レコード配下に新規クレデンシャルを追加 |
+| `CredentialId` があり、当該レコードに属する | **UPDATE / SKIP (Cred)** | クレデンシャル項目の差分を判定。空セルは既存値を維持 |
+
+### 14.4 セキュリティ・E2EE・整合性保護
+- **空セルによる値保護**: CSVのセルが空（未入力）の場合は**既存の値を維持（SKIP）**し、意図しないデータ消去を防止する。
+- **削除の非サポート**: CSVから行やクレデンシャルを削除しても、DB上のデータは**削除しない**（削除はアプリUIから明示的に実行）。
+- **E2EE整合性**:
+  - CSV側の `PasswordHint` が空の場合: DB上の既存暗号化データをそのまま維持（暗号化処理・マスターキーアンロック不要）。
+  - CSV側に平文の `PasswordHint` が入力されている場合: 家族パスコードマスターキーで端末内暗号化（`encryptHint`）を実行して更新ペイロードを生成。
+- **認可検証**: `applyImportDiff` 内で、実行ユーザーが所属する家族境界および管理者権限（`requireAdminAccess`）をレコードごとに厳密に検証。
+
+### 14.5 一括データ管理画面（`/settings/bulk`）とプレビューUI・Code Splitting
+- **単独ページ化（`routes/(app)/settings/bulk.tsx`）**:
+  - 全画面共通メニュー（`UserMenu`）から重いインポート・エクスポート処理および仮想スクロールUIを完全に切り離し、専用の一括データ管理画面 `/settings/bulk` を提供。
+  - 設定一覧画面（`/settings/`）および `UserMenu` からダイレクトに遷移可能。
+- **Code Splitting（バンドルサイズ最適化）**:
+  - `UserMenu` から CSV 解析（`papaparse`）、仮想スクロール（`@tanstack/react-virtual`）、差分突合フック（`useImportCsvDiff`）を完全剥離。
+  - `UserMenu` のチャンクサイズを **92.30 kB → 37.52 kB（約60%削減）** し、ダッシュボードや詳細画面など全画面の初期ロードを大幅に軽量化。
+  - `/settings/bulk` 内でも `CsvImportPreviewTable` を `React.lazy` で遅延ロードし、ファイル選択前の初期描画コストを最小限に抑制。
+- **変更プレビューテーブル（`CsvImportPreviewTable.tsx`）**:
+  - 反映前に新規追加（緑）・更新（青）・スキップ（灰）・エラー（赤）の各行の内訳と Before / After の詳細差分を確認可能。
+  - **行単位の選択**: 各行にチェックボックスを用意し、ユーザーが個別に「反映する / しない」を選択可能。
+  - **エラー行スキップトグル**: エラー行が存在する場合でも、トグルONで正常な選択行のみを一括反映可能。
+  - **ヘッダーとボディの横スクロール完全一致**: 単一のスクロールコンテナ（`parentRef`）直下に `min-w-[850px]` のラッパーを配置し、その中に `sticky top-0 z-10` のヘッダーと仮想アイテム行コンテナ（`translateY`）を同居させる設計を採用。JavaScriptによるスクロール連動ラグを生じさせず、ブラウザ標準のスクロール機構で横スクロール位置および列幅の完全一致と縦スクロール時のヘッダー固定をノーコストで両立。
+- **仮想スクロール（@tanstack/react-virtual）**:
+  - 最大500行のデータでも 60fps を維持するため、行高自動計測（`measureElement`）、DOM完全メモ化（`React.memo`）、`getItemKey`、オーバースキャン（8行）を適用。
+- **UIブロック防止（ADR-007）**:
+  - Web Worker は導入せず、10件単位でマクロタスク yield を行う `processInChunks` と Web Crypto API の非同期性を活用してスムーズな処理とプログレスバー・トースト表示を実現。
+- **インポート完了サマリー画面**:
+  - 反映完了後はステップが遷移し、新規登録件数・更新件数のサマリーバッジ、ダッシュボードへの遷移ボタン、再インポートボタンを表示。
+- **ヘルプ・サンプル機能（`csvHelpDialog.tsx`）**:
+  - CSVインポートゾーン横に「？」アイコンを配置。クリックで仕様説明モーダルが開き、フル列サンプルCSVをダウンロード可能。
+
+## 15. 環境変数一覧
 
 ### クライアント（src/env/client.ts, VITE_プレフィックス）
 
@@ -1184,7 +1252,7 @@ convex/crons.ts に登録されている定期ジョブ一覧:
 | --- | --- |
 | `CONVEX_DEPLOY_KEY` | Convex Deploy Key（`prod:...` 形式）。Cloudflare Secrets で暗号化保存（`wrangler secret put CONVEX_DEPLOY_KEY`）。 |
 
-## 15. デプロイ構成
+## 16. デプロイ構成
 
 - **フロントエンド** ：Vercelにデプロイ。vercel.json にて `/__/auth/*` へのアクセスをFirebase Hosting（poohma.firebaseapp.com）へリライトし、Firebase Authのポップアップ/リダイレクト処理を委譲している。
 - **セキュリティヘッダー（NFR-SEC-12）** ：vercel.json の `headers` ブロックで全パスに対し以下を設定する。
@@ -1200,7 +1268,7 @@ convex/crons.ts に登録されている定期ジョブ一覧:
   - **ライフサイクル**：R2 バケット側で 90 日経過したバックアップオブジェクトを自動削除するライフサイクルルールを設定し、保管容量を最適化する。
 - **SSR注意事項** ： `ssr.external: ["papaparse"]` の設定により、papaparseはSSRバンドルから除外しクライアント専用として扱う。
 
-## 16. テスト・品質管理
+## 17. テスト・品質管理
 
 - **単体・結合テスト** ：Vitest ＋ @testing-library/react（UIコンポーネント）、convex-test（Convex関数のテスト）。
 - **ブラウザテスト** ：@vitest/browser-playwright によるブラウザ実行モードのテスト。
@@ -1208,7 +1276,7 @@ convex/crons.ts に登録されている定期ジョブ一覧:
 - **静的解析／フォーマット** ：Biome（ `check` / `check:ci` スクリプト）。
 - **型チェック** ： `tsc --noEmit` 。
 
-## 17. 今後の課題（技術的観点）
+## 18. 今後の課題（技術的観点）
 
 - 家族移行のPREPARED状態が複数端末から同時実行された場合の競合制御（同一ユーザーの既存PREPAREDを都度EXPIRED化する方式に加え、`commitFamilyMigration` での楽観的ロック検証がIssue #190で対応済み。Web Worker + IndexedDB による耐障害性向上はIssue #111として計画中）。
 - オフラインキャッシュ（1.1）は読み取り専用として設計しているため、オフライン中の書き込み操作（新規登録・編集等）に対応する場合は、書き込みキューイングと競合解決（9.6の楽観的ロックとの整合）の設計が別途必要になる。

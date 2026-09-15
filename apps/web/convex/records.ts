@@ -525,6 +525,7 @@ export const createRecord = familyBoundMutation({
       ownerFamilyId: isFamily ? user.familyId : undefined,
       admins: isFamily && user.familyRole === "viewer" ? [user._id] : [],
       tags: args.tags,
+      stableId: crypto.randomUUID(),
       revision: 0,
       updatedAt: now,
       updatedByAccountId: user._id,
@@ -535,6 +536,7 @@ export const createRecord = familyBoundMutation({
       const c = args.credentials[i];
       await ctx.db.insert("credentials", {
         recordId,
+        stableId: crypto.randomUUID(),
         label: c.label,
         loginId: c.loginId,
         passwordHint: c.passwordHint,
@@ -1480,9 +1482,11 @@ export const fetchRecordsForExport = authenticatedMutation({
         const creds = await getCredentialsForRecord(ctx, r._id);
         return {
           ...r,
+          stableId: r.stableId,
           credentials: creds.map((c) => ({
             _id: c._id,
             id: c._id,
+            stableId: c.stableId,
             label: c.label,
             loginId: c.loginId,
             passwordHint: c.passwordHint,
@@ -1613,6 +1617,7 @@ export const importRecords = familyBoundMutation({
           ownerFamilyId: isFamily ? user.familyId : undefined,
           admins: resolvedAdmins,
           tags: record.tags,
+          stableId: crypto.randomUUID(),
           revision: 0,
           updatedAt: now,
         });
@@ -1621,6 +1626,7 @@ export const importRecords = familyBoundMutation({
           const cred = record.credentials[j];
           await ctx.db.insert("credentials", {
             recordId,
+            stableId: crypto.randomUUID(),
             label: cred.label,
             loginId: cred.loginId,
             passwordHint: cred.passwordHint,
@@ -1974,5 +1980,320 @@ export const cleanupOldAuditLogsInternal = internalMutation({
         {},
       );
     }
+  },
+});
+
+/**
+ * CSV差分インポート突合用の軽量レコード取得クエリ
+ * patterns.md #15 最小権限原則: 暗号化データ（密文・IV・DEK）は含めず、差分突合に必要な平文メタデータのみを返却
+ */
+export const getRecordsForDiffImport = authenticatedQuery({
+  args: {
+    accountId: v.optional(v.id("users")),
+  },
+  handler: async (ctx) => {
+    const { user } = ctx;
+    const records = await collectVisibleRecords(ctx, user, true);
+
+    const members = user.familyId
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_familyId", (q) => q.eq("familyId", user.familyId))
+          .collect()
+      : [user];
+    const emailById = new Map(members.map((m) => [m._id, m.email]));
+
+    return Promise.all(
+      records.map(async (r) => {
+        const admins = getEffectiveAdmins(r);
+        const creds = await getCredentialsForRecord(ctx, r._id);
+        return {
+          _id: r._id,
+          stableId: r.stableId || "",
+          title: r.title,
+          url: r.url,
+          memo: r.memo,
+          ownerType: r.ownerType,
+          adminEmails: (admins ?? [])
+            .map((id) => emailById.get(id))
+            .filter((email): email is string => !!email),
+          tags: r.tags,
+          credentials: creds.map((c) => ({
+            _id: c._id,
+            stableId: c.stableId || "",
+            label: c.label,
+            loginId: c.loginId,
+            hasPasswordHint: !!(c.passwordHint && c.passwordHintIv),
+          })),
+        };
+      }),
+    );
+  },
+});
+
+/**
+ * 差分プレビューで選択・承認された変更を一括反映するミューテーション
+ */
+export const applyImportDiff = familyBoundMutation({
+  args: {
+    accountId: v.optional(v.id("users")),
+    creates: v.array(
+      v.object({
+        title: v.string(),
+        titleReading: v.optional(v.string()),
+        url: v.optional(v.string()),
+        ogpImage: v.optional(v.string()),
+        ogpDescription: v.optional(v.string()),
+        memo: v.optional(v.string()),
+        ownerType: v.optional(v.union(v.literal("user"), v.literal("family"))),
+        admins: v.optional(v.array(v.string())),
+        adminEmails: v.optional(v.array(v.string())),
+        tags: v.array(v.string()),
+        credentials: v.array(
+          v.object({
+            id: v.optional(v.string()),
+            label: v.optional(v.string()),
+            loginId: v.optional(v.string()),
+            passwordHint: v.optional(v.string()),
+            passwordHintIv: v.optional(v.string()),
+            passwordHintDekEncrypted: v.optional(v.string()),
+            passwordHintDekIv: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
+    updates: v.array(
+      v.object({
+        stableId: v.string(),
+        title: v.optional(v.string()),
+        titleReading: v.optional(v.string()),
+        url: v.optional(v.string()),
+        memo: v.optional(v.string()),
+        ownerType: v.optional(v.union(v.literal("user"), v.literal("family"))),
+        adminEmails: v.optional(v.array(v.string())),
+        tags: v.optional(v.array(v.string())),
+        credentials: v.array(
+          v.object({
+            stableId: v.optional(v.string()),
+            label: v.optional(v.string()),
+            loginId: v.optional(v.string()),
+            passwordHint: v.optional(v.string()),
+            passwordHintIv: v.optional(v.string()),
+            passwordHintDekEncrypted: v.optional(v.string()),
+            passwordHintDekIv: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const { user } = ctx;
+    const totalCount = args.creates.length + args.updates.length;
+    if (totalCount > 500) {
+      throw new Error(
+        "一度に反映できるデータは最大500件までです。ファイルを分割して再度お試しください。",
+      );
+    }
+
+    // 家族内メンバーの解決マップ構築
+    const familyMembers = user.familyId
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_familyId", (q) => q.eq("familyId", user.familyId))
+          .collect()
+      : [];
+
+    const emailToAccountMap = new Map<string, Id<"users">[]>();
+    for (const m of familyMembers) {
+      if (m.email) {
+        const lower = m.email.toLowerCase();
+        const existing = emailToAccountMap.get(lower) || [];
+        existing.push(m._id);
+        emailToAccountMap.set(lower, existing);
+      }
+    }
+
+    const now = Date.now();
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    // 1. CREATE の処理
+    for (const item of args.creates) {
+      const isFamily = item.ownerType === "family";
+      const sortKey = computeSortKey({
+        titleReading: item.titleReading,
+        title: item.title,
+      });
+
+      const resolvedAdmins: Id<"users">[] = [];
+      if (isFamily && item.adminEmails && item.adminEmails.length > 0) {
+        for (const email of item.adminEmails) {
+          const accounts = emailToAccountMap.get(email.toLowerCase());
+          if (accounts && accounts.length > 0) {
+            resolvedAdmins.push(accounts[0]);
+          }
+        }
+      }
+
+      const recordId = await ctx.db.insert("serviceRecords", {
+        title: item.title,
+        titleReading: item.titleReading,
+        url: item.url,
+        ogpImage: item.ogpImage,
+        ogpDescription: item.ogpDescription,
+        memo: item.memo,
+        userId: user.userId,
+        accountId: user._id,
+        familyId: user.familyId,
+        sortKey,
+        ownerType: isFamily ? "family" : "user",
+        ownerFamilyId: isFamily ? user.familyId : undefined,
+        admins: resolvedAdmins,
+        tags: item.tags,
+        stableId: crypto.randomUUID(),
+        revision: 0,
+        updatedAt: now,
+      });
+
+      for (let j = 0; j < item.credentials.length; j++) {
+        const cred = item.credentials[j];
+        await ctx.db.insert("credentials", {
+          recordId,
+          stableId: crypto.randomUUID(),
+          label: cred.label,
+          loginId: cred.loginId,
+          passwordHint: cred.passwordHint,
+          passwordHintIv: cred.passwordHintIv,
+          passwordHintDekEncrypted: cred.passwordHintDekEncrypted,
+          passwordHintDekIv: cred.passwordHintDekIv,
+          order: j,
+          updatedAt: now,
+        });
+      }
+      createdCount++;
+    }
+
+    // 2. UPDATE の処理
+    for (const item of args.updates) {
+      // stableId で既存レコードを検索
+      const record = await ctx.db
+        .query("serviceRecords")
+        .withIndex("by_family_stableId", (q) =>
+          q.eq("familyId", user.familyId).eq("stableId", item.stableId),
+        )
+        .first();
+
+      if (!record) {
+        throw new Error(
+          `更新対象のレコードが見つかりません (stableId: ${item.stableId})`,
+        );
+      }
+
+      // 編集権限の確認
+      requireAdminAccess(user, record);
+
+      const patchData: Partial<Doc<"serviceRecords">> = {
+        updatedAt: now,
+        updatedByAccountId: user._id,
+      };
+
+      if (item.title !== undefined) {
+        patchData.title = item.title;
+        patchData.sortKey = computeSortKey({
+          titleReading: item.titleReading ?? record.titleReading,
+          title: item.title,
+        });
+      }
+      if (item.titleReading !== undefined) {
+        patchData.titleReading = item.titleReading;
+        patchData.sortKey = computeSortKey({
+          titleReading: item.titleReading,
+          title: item.title ?? record.title,
+        });
+      }
+      if (item.url !== undefined) patchData.url = item.url;
+      if (item.memo !== undefined) patchData.memo = item.memo;
+      if (item.tags !== undefined) patchData.tags = item.tags;
+
+      if (item.ownerType !== undefined) {
+        patchData.ownerType = item.ownerType;
+        patchData.ownerFamilyId =
+          item.ownerType === "family" ? user.familyId : undefined;
+      }
+      if (item.adminEmails !== undefined) {
+        const resolvedAdmins: Id<"users">[] = [];
+        for (const email of item.adminEmails) {
+          const accounts = emailToAccountMap.get(email.toLowerCase());
+          if (accounts && accounts.length > 0) {
+            resolvedAdmins.push(accounts[0]);
+          }
+        }
+        patchData.admins = resolvedAdmins;
+      }
+
+      await ctx.db.patch(record._id, patchData);
+
+      // クレデンシャルの更新
+      const existingCreds = await getCredentialsForRecord(ctx, record._id);
+      const credByStableId = new Map(
+        existingCreds
+          .filter((c) => !!c.stableId)
+          .map((c) => [c.stableId as string, c]),
+      );
+
+      for (let j = 0; j < item.credentials.length; j++) {
+        const credInput = item.credentials[j];
+        const targetCred = credInput.stableId
+          ? credByStableId.get(credInput.stableId)
+          : undefined;
+
+        if (targetCred) {
+          // 既存クレデンシャルの更新
+          const credPatch: Partial<Doc<"credentials">> = {
+            updatedAt: now,
+          };
+          if (credInput.label !== undefined) credPatch.label = credInput.label;
+          if (credInput.loginId !== undefined)
+            credPatch.loginId = credInput.loginId;
+          if (credInput.passwordHint && credInput.passwordHintIv) {
+            credPatch.passwordHint = credInput.passwordHint;
+            credPatch.passwordHintIv = credInput.passwordHintIv;
+            credPatch.passwordHintDekEncrypted =
+              credInput.passwordHintDekEncrypted;
+            credPatch.passwordHintDekIv = credInput.passwordHintDekIv;
+          }
+          await ctx.db.patch(targetCred._id, credPatch);
+        } else if (!credInput.stableId) {
+          // 新規クレデンシャルの追加
+          await ctx.db.insert("credentials", {
+            recordId: record._id,
+            stableId: crypto.randomUUID(),
+            label: credInput.label,
+            loginId: credInput.loginId,
+            passwordHint: credInput.passwordHint,
+            passwordHintIv: credInput.passwordHintIv,
+            passwordHintDekEncrypted: credInput.passwordHintDekEncrypted,
+            passwordHintDekIv: credInput.passwordHintDekIv,
+            order: existingCreds.length + j,
+            updatedAt: now,
+          });
+        }
+      }
+      updatedCount++;
+    }
+
+    if (createdCount > 0 || updatedCount > 0) {
+      await logAuditEvent(ctx, {
+        actor: user,
+        ownerType: "family",
+        ownerFamilyId: user.familyId,
+        action: "RECORD_UPDATE",
+        metadata: {
+          detail: `CSV差分インポート (新規作成: ${createdCount}件, 更新: ${updatedCount}件)`,
+        },
+      });
+    }
+
+    return { createdCount, updatedCount };
   },
 });

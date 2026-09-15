@@ -26,6 +26,7 @@ export function useExportCsv() {
       // Convex レコードを CSV 行フォーマットに変換
       const data: Record<string, string>[] = records.map((record) => {
         const row: Record<string, string> = {
+          RecordId: record.stableId || "",
           Title: record.title,
           URL: record.url || "",
           Memo: record.memo || "",
@@ -35,6 +36,7 @@ export function useExportCsv() {
         };
         record.credentials.forEach((cred, i) => {
           const idx = i + 1;
+          row[`CredentialId${idx}`] = cred.stableId || "";
           row[`Label${idx}`] = cred.label || "";
           row[`LoginID${idx}`] = cred.loginId || "";
           row[`PasswordHint${idx}`] = cred.passwordHint || "";
@@ -104,9 +106,22 @@ export function useExportCsv() {
         }),
       );
 
-      const columns = ["Title", "URL", "Memo", "OwnerType", "Admins", "Tags"];
+      const columns = [
+        "RecordId",
+        "Title",
+        "URL",
+        "Memo",
+        "OwnerType",
+        "Admins",
+        "Tags",
+      ];
       for (let i = 1; i <= MAX_CREDENTIALS_PER_RECORD; i++) {
-        columns.push(`Label${i}`, `LoginID${i}`, `PasswordHint${i}`);
+        columns.push(
+          `CredentialId${i}`,
+          `Label${i}`,
+          `LoginID${i}`,
+          `PasswordHint${i}`,
+        );
       }
 
       const Papa = (await import("papaparse")).default;
