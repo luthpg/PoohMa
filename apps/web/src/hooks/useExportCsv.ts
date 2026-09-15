@@ -23,16 +23,6 @@ export function useExportCsv() {
         ...context,
       });
 
-      // stableId 未バックフィルのレコードが存在しないか検証
-      const unmigrated = records.find(
-        (r) => !r.stableId || r.credentials.some((c) => !c.stableId),
-      );
-      if (unmigrated) {
-        throw new Error(
-          "一部のデータに内部識別子(stableId)が付与されていません。データの安全のため、先にデータ更新またはマイグレーションを完了してください。",
-        );
-      }
-
       // Convex レコードを CSV 行フォーマットに変換
       const data: Record<string, string>[] = records.map((record) => {
         const row: Record<string, string> = {

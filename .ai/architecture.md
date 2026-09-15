@@ -40,7 +40,7 @@ poohma/
   - `routes/__root.tsx`: ルート共通レイアウト、認証コンテキスト（`beforeLoad` で `getAuthUser` 実行）、各種 Provider
 - **Components & Code Splitting**:
   - `components/UserMenu.tsx`: 全画面共通のヘッダー・メニュー。初期バンドル軽量化のためCSVや仮想スクロールの重い依存を排除（92kB → 37kB）。
-  - `components/bulk/`: 一括データ管理専用コンポーネント群（`CsvImportDropZone.tsx`, `CsvExportSection.tsx`, `CsvImportPreviewTable.tsx`, `csvHelpDialog.tsx`）。プレビューテーブルは `React.lazy` で遅延ロード。
+  - `components/bulk/`: 一括データ管理専用コンポーネント群（`CsvImportDropZone.tsx`, `CsvExportSection.tsx`, `CsvImportPreviewTable.tsx`）および `components/csvHelpDialog.tsx`。プレビューテーブルは `React.lazy` で遅延ロード。
 - **State & Context**:
   - `AuthProvider`: Firebase Auth 状態管理
   - `AccountProvider`: 1 Firebase UID : N PoohMa Account のアクティブアカウント管理・切り替え

@@ -314,12 +314,29 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
           );
 
           let credError: string | undefined;
+          let newCredCount = 0;
           for (let cIdx = 1; cIdx <= MAX_CREDENTIALS_PER_RECORD; cIdx++) {
             const credId = (row[`CredentialId${cIdx}`] || "").trim();
             if (credId && !credByStableId.has(credId)) {
               credError = `CredentialId${cIdx} (${credId}) がこのレコードに属していません`;
               break;
             }
+            if (!credId) {
+              const label = (row[`Label${cIdx}`] || "").trim();
+              const loginId = (row[`LoginID${cIdx}`] || "").trim();
+              const hint = (row[`PasswordHint${cIdx}`] || "").trim();
+              if (label || loginId || hint) {
+                newCredCount++;
+              }
+            }
+          }
+
+          if (
+            !credError &&
+            existing.credentials.length + newCredCount >
+              MAX_CREDENTIALS_PER_RECORD
+          ) {
+            credError = `アカウント情報は最大${MAX_CREDENTIALS_PER_RECORD}件までです（既存 ${existing.credentials.length} 件 + 新規 ${newCredCount} 件）`;
           }
 
           if (credError) {
