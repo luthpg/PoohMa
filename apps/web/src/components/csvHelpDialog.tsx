@@ -301,6 +301,14 @@ export function CsvHelpDialog({
               </li>
               <li>
                 <strong className="text-foreground">
+                  共有データの管理者（Admins列）:
+                </strong>{" "}
+                <JpText>
+                  ファミリー管理者はすべての共有データを管理できるため、Admins列への記入は不要（空欄でOK）です。一般メンバーに個別の編集権限を与える場合のみメールアドレスを指定してください。家族外のメールアドレスが記入されていた場合は自動で除外され、インポート実行者が管理者として登録されます。
+                </JpText>
+              </li>
+              <li>
+                <strong className="text-foreground">
                   行を消しても削除はされません:
                 </strong>{" "}
                 <JpText>

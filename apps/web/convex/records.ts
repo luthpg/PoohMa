@@ -2113,7 +2113,7 @@ export const applyImportDiff = familyBoundMutation({
       }
     }
 
-    // 管理者メールアドレスの検証＆解決ヘルパー
+    // 管理者メールアドレスの検証＆解決ヘルパー（家族外メンバーはスキップし、実行者＋実在メンバーをadminsに設定）
     const resolveFamilyAdmins = (adminEmails?: string[]): Id<"users">[] => {
       const resolvedSet = new Set<Id<"users">>();
       // インポート実行者を必ず管理者に追加
@@ -2124,13 +2124,10 @@ export const applyImportDiff = familyBoundMutation({
           const email = rawEmail.trim();
           if (!email) continue;
           const accounts = emailToAccountMap.get(email.toLowerCase());
-          if (!accounts || accounts.length === 0) {
-            throw new Error(
-              `家族内に存在しないメンバーのメールアドレスが管理者に指定されています: ${email}`,
-            );
-          }
-          for (const accId of accounts) {
-            resolvedSet.add(accId);
+          if (accounts && accounts.length > 0) {
+            for (const accId of accounts) {
+              resolvedSet.add(accId);
+            }
           }
         }
       }

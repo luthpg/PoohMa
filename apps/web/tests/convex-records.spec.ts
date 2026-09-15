@@ -2038,12 +2038,14 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
     const t = convexTest(schema, modules);
 
     let recStableId = "";
+    let userAccountId!: Id<"users">;
+    let familyId!: Id<"families">;
     await t.run(async (ctx) => {
-      const familyId = await ctx.db.insert("families", {
+      familyId = await ctx.db.insert("families", {
         name: "Val Family",
         updatedAt: Date.now(),
       });
-      const userId = await ctx.db.insert("users", {
+      userAccountId = await ctx.db.insert("users", {
         familyRole: "admin",
         userId: "val_user",
         email: "val@example.com",
@@ -2054,12 +2056,12 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
       await ctx.db.insert("serviceRecords", {
         title: "Val Service",
         userId: "val_user",
-        accountId: userId,
+        accountId: userAccountId,
         familyId,
         sortKey: "val",
         ownerType: "family",
         ownerFamilyId: familyId,
-        admins: [userId],
+        admins: [userAccountId],
         tags: [],
         stableId: recStableId,
         revision: 0,
@@ -2109,12 +2111,13 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
       }),
     ).rejects.toThrow("更新対象のクレデンシャルが見つかりません");
 
-    // 3. 家族内に存在しない管理者メールアドレス エラー
-    await expect(
-      user.mutation(api.records.applyImportDiff, {
+    // 3. 家族内に存在しない管理者メールアドレスが指定された場合、エラーとせずスキップされインポート実行者がadminsに登録される
+    const resultWithStrangerAdmin = await user.mutation(
+      api.records.applyImportDiff,
+      {
         creates: [
           {
-            title: "Invalid Admin",
+            title: "Stranger Admin Fallback",
             ownerType: "family",
             adminEmails: ["stranger@example.com"],
             tags: [],
@@ -2122,7 +2125,16 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
           },
         ],
         updates: [],
-      }),
-    ).rejects.toThrow("家族内に存在しないメンバーのメールアドレス");
+      },
+    );
+    expect(resultWithStrangerAdmin.createdCount).toBe(1);
+
+    const createdWithStranger = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("serviceRecords")
+        .filter((q) => q.eq(q.field("title"), "Stranger Admin Fallback"))
+        .first();
+    });
+    expect(createdWithStranger?.admins).toEqual([userAccountId]);
   });
 });

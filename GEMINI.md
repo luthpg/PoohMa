@@ -7,6 +7,8 @@
   - テストが失敗した場合は、まずテスト自体のセレクタ、待機処理、前提データ（家族所属状態、認証状態など）の不備を疑い、テストコード側の改善で解決を試みること。
   - テスト失敗の根本原因がプロダクションコード側の不具合であり修正が必要と判断した場合（アクセシビリティ対応や `data-testid` 付与などを含む）でも、**手を動かす前に必ずユーザーへ「事象・原因・修正案」を報告し、合意を得てから変更する**こと。
   - ※ ユーザーから明示的に依頼された新機能実装や機能改善、仕様変更等に伴うプロダクションコード変更は通常通り進めて良い。
+- **コミット前のローカル動的検証（`pnpm test:e2e`）の義務**:
+  - UI、認証、E2EE暗号処理、Convexバックエンド連携、データ移行やインポート/エクスポート等、フロントエンドまたは結合動作に影響を与える変更を行った際は、コミット前に必ずローカルで `pnpm test:e2e` を実行し、全テスト合格を確認してからコミットすること。静的チェック（`pnpm verify`）のみで済ませてはならない。
 - **`.ai/` Knowledge Base の事前確認の義務**:
   - 実装・調査・テスト作業に着手する前に、必ず `.ai/pitfalls.md`（特に「テスト作成時の安易なプロダクションコード改変」等の過去の失敗事例）および `.ai/invariants.md` を確認し、同一の失敗を繰り返さないこと。
 
@@ -28,10 +30,13 @@
 2. **Static Check / Lint/ Format**: `pnpm check`
 3. **Test (Unit / Integration)**: `pnpm test`（Turborepo 経由で全ワークスペースの Vitest を実行）
 4. **Build Check**: `pnpm build`（Turborepo 経由で全ワークスペースのビルドを実行）
-5. **E2E Test**: `pnpm test:e2e`（Turborepo 経由で Playwright E2E テストを実行）
-6. **Full Pipeline**: `pnpm verify`（上記1〜4を一括で順次実行し、エラー発生時に即時停止。E2Eテストは個別検証またはCIで実行）
+5. **E2E Test (Dynamic Verification)**: `pnpm test:e2e`（Turborepo 経由で Playwright E2E テストを実行）
+6. **Full Pipeline**: `pnpm verify`（上記1〜4を一括で順次実行し、エラー発生時に即時停止）
 
-> **Note**: 一括検証を行う際は、ルートの `pnpm verify` を使用してください（個別のスクリプトが失敗した時点で確実に処理が中断されます）。
+> **Important (AIエージェントの動的テスト事前検証義務)**:
+> UI、認証フロー、E2EE暗号化、Convexバックエンド関数、データインポート/エクスポート等の結合動作に影響を与える変更を行った場合、**静的検証（`pnpm verify`）の通過のみで満足してコミット・プッシュしてはならない**。
+> 必ずコミット前にローカル環境で動的テスト（`pnpm test:e2e`）を実行し、全 E2E シナリオが合格することを確認してからコミットすること。
+> なお、Convex のスキーマや関数を変更した場合は、E2E 実行前に必ず `pnpm convex:dev:once`（または `pnpm -F @poohma/web exec convex dev --once`）を実行して開発インスタンスへ反映した上で E2E テストを実行すること。
 
 ## 3. Convex Workflow & Code Generation
 

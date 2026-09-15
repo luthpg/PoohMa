@@ -66,6 +66,7 @@ export interface DiffItem {
   changedFields: string[];
   changes: FieldChange[];
   errorReason?: string;
+  warnings?: string[];
   createPayload?: RecordCreatePayload;
   updatePayload?: RecordUpdatePayload;
 }
@@ -196,6 +197,34 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
             .map((r) => [r.stableId, r]),
         );
 
+        // 家族メンバー一覧を取得（共有レコードの管理者メール照合用）
+        const familyInfo = await convex.query(
+          api.families.getFamilyMembers,
+          {},
+        );
+        const familyMemberEmails = new Set(
+          (familyInfo?.users || [])
+            .map((u) => u.email?.toLowerCase().trim())
+            .filter((e): e is string => !!e),
+        );
+
+        const checkAdminWarnings = (rawAdmins?: string): string[] => {
+          if (!rawAdmins || familyMemberEmails.size === 0) return [];
+          const emails = rawAdmins
+            .split(",")
+            .map((a) => a.trim())
+            .filter(Boolean);
+          const invalidEmails = emails.filter(
+            (e) => !familyMemberEmails.has(e.toLowerCase()),
+          );
+          if (invalidEmails.length > 0) {
+            return [
+              `家族外メンバー (${invalidEmails.join(", ")}) は管理者から除外され、あなたが管理者として登録されます`,
+            ];
+          }
+          return [];
+        };
+
         // RecordId 重複追跡用 Set
         const seenRecordIdsInCsv = new Map<string, number>(); // stableId -> firstCsvRow
         const preliminaryItems: DiffItem[] = [];
@@ -222,6 +251,9 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
 
           // 2. 新規作成 (CREATE)
           if (!recordId) {
+            const isFamily =
+              (row.OwnerType || "").trim().toLowerCase() === "family";
+            const warnings = isFamily ? checkAdminWarnings(row.Admins) : [];
             preliminaryItems.push({
               index: i,
               csvRow,
@@ -236,6 +268,7 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
                   after: title,
                 },
               ],
+              warnings: warnings.length > 0 ? warnings : undefined,
             });
             continue;
           }
@@ -442,6 +475,8 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
             }
           }
 
+          const isFamily = (ownerType || existing.ownerType) === "family";
+          const warnings = isFamily ? checkAdminWarnings(row.Admins) : [];
           preliminaryItems.push({
             index: i,
             csvRow,
@@ -450,6 +485,7 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
             stableId: recordId,
             changedFields,
             changes,
+            warnings: warnings.length > 0 ? warnings : undefined,
           });
         }
 

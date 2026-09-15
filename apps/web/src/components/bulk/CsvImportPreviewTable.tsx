@@ -444,7 +444,8 @@ const DiffRow = memo(function DiffRow({
 }: DiffRowProps) {
   const isError = item.action === "ERROR";
   const isSkip = item.action === "SKIP";
-  const hasChanges = item.changes && item.changes.length > 0;
+  const hasWarnings = item.warnings && item.warnings.length > 0;
+  const hasChanges = (item.changes && item.changes.length > 0) || hasWarnings;
 
   const handleRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -513,10 +514,19 @@ const DiffRow = memo(function DiffRow({
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 dark:text-red-400" />
               {item.errorReason}
             </span>
-          ) : isSkip ? (
+          ) : isSkip && !hasWarnings ? (
             <span className="text-muted-foreground text-[11px]">変更なし</span>
           ) : (
             <div className="flex items-center gap-1.5 flex-wrap">
+              {hasWarnings && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 font-normal bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center gap-1"
+                >
+                  <AlertTriangle className="h-2.5 w-2.5 text-amber-500" />
+                  警告あり
+                </Badge>
+              )}
               {item.changedFields.map((field) => (
                 <Badge
                   key={field}
@@ -547,36 +557,51 @@ const DiffRow = memo(function DiffRow({
         </div>
       </div>
 
-      {/* 展開時: Before / After 変更詳細リスト */}
+      {/* 展開時: 警告コールアウト & Before / After 変更詳細リスト */}
       {isExpanded && hasChanges && (
-        <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border/40 text-xs">
-          <div className="space-y-1.5 ml-28">
-            {item.changes?.map((change) => (
-              <div
-                key={change.field}
-                className="flex items-center gap-2 text-[11px] py-0.5"
-              >
-                <span className="w-32 text-muted-foreground font-mono truncate">
-                  {change.field}:
-                </span>
-                <div className="flex items-center gap-2 flex-1">
-                  <span
-                    className="text-muted-foreground/80 line-through truncate max-w-[45%]"
-                    title={change.before}
-                  >
-                    {change.before || "(未設定)"}
-                  </span>
-                  <ArrowRight className="h-3 w-3 shrink-0 text-orange-500" />
-                  <span
-                    className="font-semibold text-foreground truncate max-w-[45%]"
-                    title={change.after}
-                  >
-                    {change.after || "(未設定)"}
-                  </span>
+        <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border/40 text-xs space-y-2">
+          {hasWarnings && (
+            <div className="space-y-1 ml-28">
+              {item.warnings?.map((warn) => (
+                <div
+                  key={warn}
+                  className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-[11px] leading-relaxed"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <span>{warn}</span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+          {item.changes && item.changes.length > 0 && (
+            <div className="space-y-1.5 ml-28">
+              {item.changes.map((change) => (
+                <div
+                  key={change.field}
+                  className="flex items-center gap-2 text-[11px] py-0.5"
+                >
+                  <span className="w-32 text-muted-foreground font-mono truncate">
+                    {change.field}:
+                  </span>
+                  <div className="flex items-center gap-2 flex-1">
+                    <span
+                      className="text-muted-foreground/80 line-through truncate max-w-[45%]"
+                      title={change.before}
+                    >
+                      {change.before || "(未設定)"}
+                    </span>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-orange-500" />
+                    <span
+                      className="font-semibold text-foreground truncate max-w-[45%]"
+                      title={change.after}
+                    >
+                      {change.after || "(未設定)"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
