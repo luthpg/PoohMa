@@ -29,6 +29,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "some_user",
           accountId: someUserId,
           title: "Dummy",
@@ -69,6 +70,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_owner",
           accountId: userAId,
           title: "My Private Record",
@@ -114,6 +116,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
 
         // ユーザーAの個人レコード
         recordAId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_a",
           accountId: userAId,
           title: "User A Private",
@@ -163,6 +166,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
         });
 
         recordAId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_a",
           accountId: userAId,
           familyId,
@@ -222,6 +226,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
         });
 
         recordAId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_a",
           accountId: userAId,
           familyId,
@@ -271,6 +276,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
         });
 
         recordAId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_a",
           accountId: userAId,
           familyId,
@@ -326,6 +332,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
         });
 
         recordAId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_f1",
           accountId: userF1Id,
           familyId: family1,
@@ -375,6 +382,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         const leakRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_leak_f1",
           accountId: userF1Id,
           familyId: family1,
@@ -388,6 +396,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
         });
         await ctx.db.insert("credentials", {
           recordId: leakRecId,
+          stableId: crypto.randomUUID(),
           label: "secret label",
           passwordHint: "encrypted_hint_blob",
           passwordHintIv: "encrypted_iv_blob",
@@ -431,6 +440,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         ownRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_bulk_b",
           accountId: userBId,
           familyId: family1Id,
@@ -442,6 +452,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         othersPrivateId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_bulk_a",
           accountId: userAId,
           familyId: family1Id,
@@ -493,6 +504,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         sharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_bulk_owner",
           accountId: userAId,
           familyId,
@@ -537,6 +549,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
           updatedAt: Date.now(),
         });
         sharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_bulk_owner",
           accountId: userAId,
           familyId,
@@ -594,6 +607,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
 
         // 家族共有レコード
         const sharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "u1",
           accountId: user1Id,
           familyId: family1Id,
@@ -609,6 +623,7 @@ describe("4. セキュリティ/アーキテクチャ特化テスト (Convex 認
 
         // 個人レコード
         const privateRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "u1",
           accountId: user1Id,
           familyId: family1Id,

@@ -62,6 +62,7 @@ const seedTwoUserFamily_ = async (t: ReturnType<typeof convexTest>) => {
     });
 
     recordAId = await ctx.db.insert("serviceRecords", {
+      stableId: crypto.randomUUID(),
       userId: "ua",
       accountId: userAId,
       familyId: oldFamilyId,
@@ -75,6 +76,7 @@ const seedTwoUserFamily_ = async (t: ReturnType<typeof convexTest>) => {
 
     credAId = await ctx.db.insert("credentials", {
       recordId: recordAId,
+      stableId: crypto.randomUUID(),
       label: "LabelA",
       loginId: "LoginA",
       passwordHint: dummyData.a.passwordHint,
@@ -86,6 +88,7 @@ const seedTwoUserFamily_ = async (t: ReturnType<typeof convexTest>) => {
     });
 
     recordBId = await ctx.db.insert("serviceRecords", {
+      stableId: crypto.randomUUID(),
       userId: "ub",
       accountId: userBId,
       familyId: oldFamilyId,
@@ -99,6 +102,7 @@ const seedTwoUserFamily_ = async (t: ReturnType<typeof convexTest>) => {
 
     credBId = await ctx.db.insert("credentials", {
       recordId: recordBId,
+      stableId: crypto.randomUUID(),
       label: "LabelB",
       loginId: "LoginB",
       passwordHint: dummyData.b.passwordHint,
@@ -424,6 +428,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
 
         // 参加者が所有する個人レコード
         recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "applicant_b",
           accountId: applicantId,
           familyId: undefined,
@@ -438,6 +443,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         // 参加者の個人credential
         credentialId = await ctx.db.insert("credentials", {
           recordId,
+          stableId: crypto.randomUUID(),
           label: "Applicant Credential",
           loginId: "Applicant Login",
           passwordHint: "OLD_HINT",
@@ -1163,6 +1169,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
 
         const rSolo = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_solo",
           accountId: userSoloId,
           familyId: oldFamilyId,
@@ -1176,6 +1183,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
 
         await ctx.db.insert("credentials", {
           recordId: rSolo,
+          stableId: crypto.randomUUID(),
           passwordHint: "old_hint",
           passwordHintIv: "old_iv",
           order: 0,
@@ -1311,6 +1319,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
           updatedAt: Date.now(),
         });
         const rOmit = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           title: "省略テストレコード",
           sortKey: computeSortKey("省略テストレコード"),
           tags: [],
@@ -1324,6 +1333,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
 
         credADocId = await ctx.db.insert("credentials", {
           recordId: rOmit,
+          stableId: crypto.randomUUID(),
           passwordHint: "hint_a",
           passwordHintIv: "iv_a",
           order: 0,
@@ -1331,6 +1341,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: rOmit,
+          stableId: crypto.randomUUID(),
           passwordHint: "hint_b",
           passwordHintIv: "iv_b",
           order: 1,
@@ -1482,6 +1493,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
 
         record1Id = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_dup_cred",
           accountId: userDupCredId,
           familyId: undefined,
@@ -1494,6 +1506,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: record1Id,
+          stableId: crypto.randomUUID(),
           passwordHint: "r1_hint_old",
           passwordHintIv: "iv1",
           order: 0,
@@ -1501,6 +1514,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
 
         record2Id = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_dup_cred",
           accountId: userDupCredId,
           familyId: undefined,
@@ -1513,6 +1527,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: record2Id,
+          stableId: crypto.randomUUID(),
           passwordHint: "r2_hint_old",
           passwordHintIv: "iv2",
           order: 0,
@@ -1694,6 +1709,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
 
         // prepare 前に存在するレコード
         recordBeforeId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           title: "テストレコード1",
           sortKey: computeSortKey("テストレコード1"),
           tags: [],
@@ -1706,6 +1722,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: recordBeforeId,
+          stableId: crypto.randomUUID(),
           passwordHint: "before_hint",
           passwordHintIv: "before_iv",
           order: 0,
@@ -1734,6 +1751,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
       let newRecordId!: Id<"serviceRecords">;
       await t.run(async (ctx) => {
         newRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           title: "テストレコード2",
           sortKey: computeSortKey("テストレコード2"),
           tags: [],
@@ -1746,6 +1764,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: newRecordId,
+          stableId: crypto.randomUUID(),
           passwordHint: "after_hint",
           passwordHintIv: "after_iv",
           order: 0,
@@ -1871,6 +1890,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
           updatedAt: Date.now(),
         });
         const existRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_solo2",
           accountId: userSoloId,
           familyId: oldFamilyId,
@@ -1883,6 +1903,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
         });
         await ctx.db.insert("credentials", {
           recordId: existRecId,
+          stableId: crypto.randomUUID(),
           passwordHint: "old_hint",
           passwordHintIv: "old_iv",
           order: 0,
@@ -1908,6 +1929,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
       let newRecordId!: Id<"serviceRecords">;
       await t.run(async (ctx) => {
         newRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_solo2",
           accountId: userSoloId,
           familyId: oldFamilyId,
@@ -1983,6 +2005,7 @@ describe("2.1 家族管理とE2EE鍵ローテーションの統合テスト (Con
           updatedAt: Date.now(),
         });
         stayingSharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_staying2",
           accountId: stayingId,
           familyId: oldFamilyId,
@@ -2285,6 +2308,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
         });
 
         sharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_leave",
           accountId: userLeaveId,
           familyId: familyOldId,
@@ -2352,6 +2376,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
           updatedAt: Date.now(),
         });
         sharedRecordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_solo_leave",
           accountId: userSoloId,
           familyId: familyOldId,
@@ -2660,6 +2685,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
         });
 
         const r1 = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "ua",
           accountId: userAId,
           familyId,
@@ -2672,6 +2698,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
         });
         await ctx.db.insert("credentials", {
           recordId: r1,
+          stableId: crypto.randomUUID(),
           passwordHint: "SGVsbG8gV29ybGQgYXV0aGVudGljYXRlZCBhZWFk",
           passwordHintIv: "dGVzdGl2MTIzNDU2",
           passwordHintDekEncrypted: "ZGVrRGF0YUF1dGhlbnRpY2F0ZWQ=",
@@ -3029,6 +3056,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
 
         // ユーザーBのみが管理者となっている共有レコード
         sharedRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           title: "家族Netflix",
           sortKey: "netflix",
           userId: "user_b",
@@ -3218,6 +3246,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
 
         // ユーザーBの個人所有レコード（PRIVATE）
         personalRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           title: "個人銀行",
           sortKey: "personal_bank",
           userId: "user_b",
@@ -3230,6 +3259,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
 
         credDocId = await ctx.db.insert("credentials", {
           recordId: personalRecId,
+          stableId: crypto.randomUUID(),
           label: "メイン",
           loginId: "userBLogin",
           passwordHint: "oldEncryptedHint",
@@ -3628,6 +3658,7 @@ describe("Family Passcode Rotation - Envelope Re-wrapping Integration", () => {
           updatedAt: Date.now(),
         });
         sharedRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "leaving_admin",
           accountId: leavingAdminId,
           familyId,

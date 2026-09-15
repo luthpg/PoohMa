@@ -108,6 +108,7 @@ export const insertSampleRecords = familyBoundMutation({
         ownerFamilyId: isFamily ? familyId : undefined,
         admins: isFamily ? [user._id] : [],
         tags: recordData.tags,
+        stableId: crypto.randomUUID(),
         isSample: true,
         revision: 0,
         updatedAt: now,
@@ -118,6 +119,7 @@ export const insertSampleRecords = familyBoundMutation({
         const c = recordData.credentials[i];
         await ctx.db.insert("credentials", {
           recordId,
+          stableId: crypto.randomUUID(),
           label: c.label,
           loginId: c.loginId,
           passwordHint: c.passwordHint,

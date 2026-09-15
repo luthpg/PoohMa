@@ -753,6 +753,7 @@ export const updateRecord = familyBoundMutation({
         // 新規クレデンシャルの作成
         const newId = await ctx.db.insert("credentials", {
           recordId: args.id,
+          stableId: crypto.randomUUID(),
           label: c.label,
           loginId: c.loginId,
           passwordHint: c.passwordHint,
@@ -841,6 +842,7 @@ export const createCredential = familyBoundMutation({
 
     const credId = await ctx.db.insert("credentials", {
       recordId: args.recordId,
+      stableId: crypto.randomUUID(),
       label: args.label,
       loginId: args.loginId,
       passwordHint: args.passwordHint,

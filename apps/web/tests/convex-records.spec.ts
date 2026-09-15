@@ -76,6 +76,7 @@ describe("2.2.1 閲覧権限（ownerType）の境界値テスト (Convex版)", (
 
       // Aが個人レコードを作成
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -89,6 +90,7 @@ describe("2.2.1 閲覧権限（ownerType）の境界値テスト (Convex版)", (
 
       // Aが家族共有レコードを作成
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -406,6 +408,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
 
       // User A personal record
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -419,6 +422,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
 
       // User B shared record where only B is admin
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_b",
         accountId: userBId,
         familyId: family1Id,
@@ -474,6 +478,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -547,6 +552,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       sharedRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -608,6 +614,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       r1Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -620,6 +627,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       r2Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -738,6 +746,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -859,6 +868,7 @@ describe("件数境界値テスト", () => {
         updatedAt: Date.now(),
       });
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_order",
         accountId,
         familyId,
@@ -943,6 +953,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Aの個人レコード
       personalRecAId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "A Personal Record",
         userId: "user_export_a",
         accountId: userAId,
@@ -954,6 +965,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Aが管理者の家族共有レコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Shared Admin A Record",
         userId: "user_export_a",
         accountId: userAId,
@@ -967,6 +979,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Bが管理者の家族共有レコード（Aは管理者ではない）
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Shared Admin B Record",
         userId: "user_export_b",
         accountId: userBId,
@@ -980,6 +993,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Bの個人レコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "B Personal Record",
         userId: "user_export_b",
         accountId: userBId,
@@ -992,6 +1006,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
       // Aの個人レコードにクレデンシャルを追加
       await ctx.db.insert("credentials", {
         recordId: personalRecAId,
+        stableId: crypto.randomUUID(),
         label: "Main Login",
         loginId: "a_login_id",
         passwordHint: "hint_text",
@@ -1103,6 +1118,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1187,6 +1203,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1241,6 +1258,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
         updatedAt: now,
       });
       const recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "cleanup_user",
         accountId,
         familyId,
@@ -1310,6 +1328,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1426,6 +1445,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       // チャンクサイズ（64件）を超える 70 件のレコードと各クレデンシャルを一括投入
       for (let i = 0; i < 70; i++) {
         const recId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_chunk_a",
           accountId: userAId,
           familyId,
@@ -1440,6 +1460,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId: recId,
+          stableId: crypto.randomUUID(),
           label: `Label ${i}`,
           loginId: `user${i}@example.com`,
           passwordHint: `secret-hint-${i}`,
@@ -1507,6 +1528,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
       for (let i = 0; i < 5; i++) {
         const recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_limit_a",
           accountId: userAId,
           familyId,
@@ -1521,6 +1543,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId,
+          stableId: crypto.randomUUID(),
           label: `Limit Credential ${i}`,
           updatedAt: Date.now() + i,
         });
@@ -1570,6 +1593,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
       for (let i = 0; i < 5; i++) {
         const recId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_paginated_a",
           accountId: userAId,
           familyId,
@@ -1584,6 +1608,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId: recId,
+          stableId: crypto.randomUUID(),
           label: `Cred ${i}`,
           loginId: `user${i}@example.com`,
           passwordHint: `hint-${i}`,
@@ -1671,6 +1696,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       rec1Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1683,6 +1709,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
         updatedAt: Date.now(),
       });
       rec2Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1748,66 +1775,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
   });
 });
 
-describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグレーション検証", () => {
-  it("backfillStableIds: stableId未設定のレコードとクレデンシャルにUUIDが一括付与されること", async () => {
-    const t = convexTest(schema, modules);
-    let recId!: Id<"serviceRecords">;
-    let credId!: Id<"credentials">;
-
-    await t.run(async (ctx) => {
-      const familyId = await ctx.db.insert("families", {
-        name: "Backfill Family",
-        updatedAt: Date.now(),
-      });
-      const userId = await ctx.db.insert("users", {
-        familyRole: "admin",
-        userId: "backfill_user",
-        email: "backfill@example.com",
-        familyId,
-        updatedAt: Date.now(),
-      });
-      recId = await ctx.db.insert("serviceRecords", {
-        title: "No StableId Service",
-        userId: "backfill_user",
-        accountId: userId,
-        familyId,
-        tags: [],
-        updatedAt: Date.now(),
-      });
-      credId = await ctx.db.insert("credentials", {
-        recordId: recId,
-        label: "Login",
-        loginId: "user@example.com",
-        updatedAt: Date.now(),
-      });
-    });
-
-    // マイグレーション実行前は stableId が未定義
-    await t.run(async (ctx) => {
-      const r = await ctx.db.get(recId);
-      expect(r?.stableId).toBeUndefined();
-      const c = await ctx.db.get(credId);
-      expect(c?.stableId).toBeUndefined();
-    });
-
-    // backfillStableIds を実行
-    const result = await t.mutation(internal.migrations.backfillStableIds, {});
-    expect(result.recordsUpdated).toBe(1);
-    expect(result.credentialsUpdated).toBe(1);
-
-    // 実行後は UUID が格納されていること
-    await t.run(async (ctx) => {
-      const r = await ctx.db.get(recId);
-      expect(r?.stableId).toBeDefined();
-      expect(typeof r?.stableId).toBe("string");
-      expect(r?.stableId?.length).toBeGreaterThan(10);
-
-      const c = await ctx.db.get(credId);
-      expect(c?.stableId).toBeDefined();
-      expect(typeof c?.stableId).toBe("string");
-    });
-  });
-
+describe("2.2.14 CSV差分インポート・安定ID（stableId）検証", () => {
   it("getRecordsForDiffImport: 差分突合用に平文メタデータのみを取得し、暗号文は除外されること", async () => {
     const t = convexTest(schema, modules);
     const stableUUID = "11111111-2222-3333-4444-555555555555";

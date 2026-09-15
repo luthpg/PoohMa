@@ -162,7 +162,7 @@ export default defineSchema({
     // タグを配列として埋め込み
     tags: v.array(v.string()),
 
-    stableId: v.optional(v.string()), // CSV差分インポート用 UUID v4（マイグレーション完了後は実質必須）
+    stableId: v.string(), // CSV差分インポート・エクスポート用 UUID v4
     revision: v.optional(v.number()), // 楽観的ロック用（既存レコードは 0 として扱う）
     isSample: v.optional(v.boolean()), // オンボーディング用サンプルデータ識別フラグ
     updatedAt: v.number(),
@@ -184,7 +184,7 @@ export default defineSchema({
 
   credentials: defineTable({
     recordId: v.id("serviceRecords"),
-    stableId: v.optional(v.string()), // CSV差分インポート用 UUID v4（マイグレーション完了後は実質必須）
+    stableId: v.string(), // CSV差分インポート・エクスポート用 UUID v4
     label: v.optional(v.string()),
     loginId: v.optional(v.string()),
     passwordHint: v.optional(v.string()),

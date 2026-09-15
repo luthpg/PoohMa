@@ -20,7 +20,6 @@ import type * as crons from "../crons.js";
 import type * as customBuilders from "../customBuilders.js";
 import type * as families from "../families.js";
 import type * as http from "../http.js";
-import type * as migrations from "../migrations.js";
 import type * as onboarding from "../onboarding.js";
 import type * as records from "../records.js";
 import type * as recovery from "../recovery.js";
@@ -35,7 +34,6 @@ declare const fullApi: ApiFromModules<{
   customBuilders: typeof customBuilders;
   families: typeof families;
   http: typeof http;
-  migrations: typeof migrations;
   onboarding: typeof onboarding;
   records: typeof records;
   recovery: typeof recovery;
