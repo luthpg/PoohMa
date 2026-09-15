@@ -127,15 +127,29 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
         });
 
         const data = parseResult.data;
-        const fatalParseError = parseResult.errors?.find(
-          (error) => error.type === "Quotes" || error.type === "FieldMismatch",
+
+        // Quotes エラー（クォートの不整合）は行境界自体が確定できないため、ファイル全体を安全に中断
+        const quoteError = parseResult.errors?.find(
+          (error) => error.type === "Quotes",
         );
-        if (fatalParseError) {
-          toast.error(`CSVの形式が不正です: ${fatalParseError.message}`, {
-            id: IMPORT_TOAST_ID,
-          });
+        if (quoteError) {
+          toast.error(
+            "CSVファイルの形式が不正です。ダブルクォートの対応関係を確認してください。",
+            { id: IMPORT_TOAST_ID },
+          );
           setIsAnalyzing(false);
           return;
+        }
+
+        // 行単位のパースエラー（FieldMismatch: カラム数不一致など）を行番号（0-indexed）ごとに収集
+        const rowParseErrors = new Map<number, string>();
+        for (const err of parseResult.errors || []) {
+          if (err.row != null) {
+            rowParseErrors.set(
+              err.row,
+              "列の数がヘッダーと一致しません（不正な行）",
+            );
+          }
         }
 
         if (!data || data.length === 0) {
@@ -232,6 +246,23 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
         for (let i = 0; i < data.length; i++) {
           const row = data[i];
           const csvRow = i + 2; // ヘッダー行を1行目としたときの行番号
+
+          // 行単位のパースエラー（FieldMismatch 等）がある場合は該当行を ERROR として分類し、正常行の処理を続行
+          if (rowParseErrors.has(i)) {
+            preliminaryItems.push({
+              index: i,
+              csvRow,
+              action: "ERROR",
+              title: (row?.Title || "").trim() || "(列数不一致エラー)",
+              changedFields: [],
+              changes: [],
+              errorReason:
+                rowParseErrors.get(i) ||
+                "列の数がヘッダーと一致しません（不正な行）",
+            });
+            continue;
+          }
+
           const recordId = (row.RecordId || "").trim();
           const title = (row.Title || "").trim();
 
@@ -743,11 +774,13 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
         toast.dismiss(IMPORT_TOAST_ID);
         setDiffItems(finalItems);
         setIsPreviewOpen(true);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "不明なエラー";
-        toast.error(`CSV解析中にエラーが発生しました: ${message}`, {
-          id: IMPORT_TOAST_ID,
-        });
+      } catch (_err: unknown) {
+        toast.error(
+          "CSV解析中にエラーが発生しました。ファイル形式をご確認ください。",
+          {
+            id: IMPORT_TOAST_ID,
+          },
+        );
       } finally {
         setIsAnalyzing(false);
       }
@@ -798,11 +831,13 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
           createdCount: result.createdCount,
           updatedCount: result.updatedCount,
         };
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "不明なエラー";
-        toast.error(`反映処理中にエラーが発生しました: ${message}`, {
-          id: APPLY_TOAST_ID,
-        });
+      } catch (_err: unknown) {
+        toast.error(
+          "変更内容の反映に失敗しました。時間をおいて再度お試しください。",
+          {
+            id: APPLY_TOAST_ID,
+          },
+        );
         return null;
       } finally {
         setIsApplying(false);
