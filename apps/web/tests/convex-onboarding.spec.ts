@@ -74,6 +74,7 @@ describe("オンボーディング Convexバックエンドテスト", () => {
 
       // 既存の通常レコード（非サンプル）を作成しておく
       const normalRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "通常のサービス",
         userId: "user_family_member",
         accountId: userId,
@@ -88,6 +89,7 @@ describe("オンボーディング Convexバックエンドテスト", () => {
       });
       await ctx.db.insert("credentials", {
         recordId: normalRecordId,
+        stableId: crypto.randomUUID(),
         label: "本物アカウント",
         loginId: "real_user",
         order: 0,

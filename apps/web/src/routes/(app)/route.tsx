@@ -11,7 +11,16 @@ import { useAuth } from "@/components/AuthProvider";
 import { HoneyPotLoader } from "@/components/HoneyPotLoader";
 import { useAccount } from "@/hooks/useAccount";
 
+const Loader = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <HoneyPotLoader size="lg" animationDurationSeconds={1.5} />
+  </div>
+);
+
 export const Route = createFileRoute("/(app)")({
+  pendingMs: 0,
+  pendingMinMs: 300,
+  pendingComponent: Loader,
   component: RouteComponent,
 });
 
@@ -55,11 +64,7 @@ function RouteComponent() {
 
   // 認証初期化・復元中、および未認証時（ログイン画面へのリダイレクト遷移中）はローディング表示
   if (isAuthLoading || !isAuthenticated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <HoneyPotLoader size="lg" animationDurationSeconds={1.5} />
-      </div>
-    );
+    return <Loader />;
   }
 
   return (

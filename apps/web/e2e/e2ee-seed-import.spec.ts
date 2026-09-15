@@ -172,8 +172,11 @@ async function importCsvSeed(
 
   const recordIdsBeforeImport = new Set(await getRecordIds(page));
 
-  // ③ CSVファイル入力要素
-  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  // ③ /settings/bulk 画面へ移動して一括インポートを実行
+  await page.goto("/settings/bulk");
+  await expect(page).toHaveURL(/.*\/settings\/bulk/, { timeout: 20000 });
+
+  const fileInput = page.locator('[data-testid="csv-bulk-file-input"]');
   await fileInput.waitFor({ state: "attached", timeout: 30000 });
   await fileInput.setInputFiles(csvPath);
 
@@ -192,18 +195,48 @@ async function importCsvSeed(
     // プロンプトが表示されなかった（既にアンロック状態）場合はスキップ
   }
 
-  // クライアント側暗号化と保存完了トーストを待機
-  const successToast = page.locator(
-    "text=/\\d+件のデータをインポートしました/",
+  // 差分プレビューコンテナの表示待機
+  const previewContainer = page.locator(
+    '[data-testid="csv-import-preview-container"]',
   );
-  await expect(successToast).toBeVisible({ timeout: 120000 });
+  await expect(previewContainer).toBeVisible({ timeout: 30000 });
 
-  // レコード一覧の更新を待機して、新しく追加されたレコードIDを返す
-  await page.waitForTimeout(2000);
-  const newlyImportedIds = (await getRecordIds(page)).filter(
-    (id) => !recordIdsBeforeImport.has(id),
-  );
-  expect(newlyImportedIds.length).toBeGreaterThan(0);
+  // 「反映する」ボタンをクリック
+  const applyBtn = page.locator('[data-testid="apply-import-diff-button"]');
+  await expect(applyBtn).toBeEnabled({ timeout: 15000 });
+  await applyBtn.click();
+
+  // クライアント側暗号化と保存完了を待機（トーストまたは完了画面）
+  const successIndicator = page
+    .locator(
+      "text=/(インポートが完了しました|インポート完了|データを反映しました)/",
+    )
+    .first();
+  await expect(successIndicator).toBeVisible({ timeout: 120000 });
+
+  // ダッシュボードへ戻り、レコード一覧の反映を待機
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
+
+  // レコード一覧の更新をポーリング待機して、新しく追加されたレコードIDを返す
+  let newlyImportedIds: string[] = [];
+  await expect
+    .poll(
+      async () => {
+        const currentIds = await getRecordIds(page);
+        newlyImportedIds = currentIds.filter(
+          (id) => !recordIdsBeforeImport.has(id),
+        );
+        return newlyImportedIds.length;
+      },
+      {
+        message: "CSVインポート後のレコード反映待機",
+        timeout: 15000,
+        intervals: [500, 1000, 2000],
+      },
+    )
+    .toBeGreaterThan(0);
+
   return newlyImportedIds;
 }
 
@@ -577,6 +610,9 @@ test.describe("E2EE主要フローとCSVインポートSeed検証", () => {
       await test.step("Step 4: 一括操作モードによるインポートレコード削除 (/dashboard)", async () => {
         await bulkDeleteRecords(page, importedRecordIds);
       });
+    } catch (e) {
+      console.error(e);
+      throw e;
     } finally {
       // =====================================================================
       // Step 5: クリーンアップ (テスト成否にかかわらず実行専用サブアカウントを削除)

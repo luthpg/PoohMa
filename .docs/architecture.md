@@ -122,7 +122,6 @@ flowchart TB
 ## 今後の変更予定
 
 - Web Application のホスティングを Vercel から Cloudflare Workers / Pages へ移管する計画があり（Issue #218「Cloudflare Workers / Pagesへのアプリケーション移管」, #219「Cloudflare移行に伴う外部サービス・Runtime互換性対応」、いずれも open）、実現した場合は本ドキュメントの「Web Application」節・アーキテクチャ図の見直しが必要になる。
-- `credentials` の独立テーブル分離（Issue #139, open）が実現した場合、Database節・データモデルの見直しが必要になる。
 
 ## 関連ドキュメント
 

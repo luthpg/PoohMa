@@ -1,11 +1,12 @@
 import {
   createFileRoute,
   getRouteApi,
+  Link,
   useRouter,
 } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import { GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
-import { AlertTriangle, Download } from "lucide-react";
+import { AlertTriangle, ChevronRight, Database, Download } from "lucide-react";
 import { type SubmitEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/../convex/_generated/api";
@@ -22,20 +23,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { useExportCsv } from "@/hooks/use-export-csv";
 import { useAccount } from "@/hooks/useAccount";
+import { useExportCsv } from "@/hooks/useExportCsv";
 import { clearQueryCache } from "@/hooks/usePersistentQuery";
 import { isBiometricEnabledForUser } from "@/lib/biometric";
 import { auth } from "@/utils/firebase";
 
-export const Route = createFileRoute("/(app)/settings")({
+export const Route = createFileRoute("/(app)/settings/")({
   loader: ({ context }) => {
     return { user: context.user ?? null };
   },
   component: SettingsComponent,
 });
 
-const routeApi = getRouteApi("/(app)/settings");
+const routeApi = getRouteApi("/(app)/settings/");
 
 function SettingsComponent() {
   const { user } = routeApi.useLoaderData();
@@ -337,6 +338,28 @@ function SettingsComponent() {
               </button>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* データ管理セクション */}
+      <div className="rounded-lg bg-card p-6 shadow-card border border-border/50 mt-8 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-[18px] font-semibold text-foreground tracking-geist-ui">
+              データ管理（CSV）
+            </h2>
+            <p className="text-[12px] text-muted-foreground">
+              登録データの一括エクスポート、および編集したCSVの差分プレビュー一括インポートが行えます。
+            </p>
+          </div>
+          <Link
+            to="/settings/bulk"
+            className="inline-flex items-center justify-center rounded-md bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-[13px] font-medium transition shrink-0 gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Database className="h-4 w-4" />
+            データ管理を開く
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </div>
 

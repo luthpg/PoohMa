@@ -186,6 +186,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: 1000,
         });
         recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "old_firebase_uid",
           accountId: oldAccId1,
           title: "旧レコード",
@@ -523,6 +524,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         familyRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "solo_family_user",
           accountId: userAccId,
           familyId,
@@ -591,6 +593,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         personalRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "leaving_member_uid",
           accountId: leavingAccId,
           familyId,
@@ -600,6 +603,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         sharedRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "leaving_member_uid",
           accountId: leavingAccId,
           familyId,
@@ -647,6 +651,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         personalRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "no_family_user",
           accountId: userAccId,
           title: "個人レコード",
@@ -654,6 +659,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         famRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "no_family_user",
           accountId: userAccId,
           familyId: otherFamilyId,
@@ -716,6 +722,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
         });
 
         personalRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "delete_all_multi_user",
           accountId: myAcc1,
           familyId: sharedFamilyId,
@@ -725,6 +732,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         sharedRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "delete_all_multi_user",
           accountId: myAcc1,
           familyId: sharedFamilyId,
@@ -734,6 +742,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         noFamRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "delete_all_multi_user",
           accountId: myAcc2,
           title: "家族なしレコード",
@@ -1238,6 +1247,7 @@ describe("users.ts & customBuilders.ts / 認証・認可・セキュリティ境
           updatedAt: Date.now(),
         });
         sharedRecId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "admin_user",
           accountId: adminId,
           familyId,

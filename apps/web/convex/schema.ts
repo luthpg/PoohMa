@@ -162,6 +162,7 @@ export default defineSchema({
     // タグを配列として埋め込み
     tags: v.array(v.string()),
 
+    stableId: v.string(), // CSV差分インポート・エクスポート用 UUID v4
     revision: v.optional(v.number()), // 楽観的ロック用（既存レコードは 0 として扱う）
     isSample: v.optional(v.boolean()), // オンボーディング用サンプルデータ識別フラグ
     updatedAt: v.number(),
@@ -177,10 +178,13 @@ export default defineSchema({
       "ownerType",
       "accountId",
       "updatedAt",
-    ]),
+    ])
+    .index("by_family_stableId", ["familyId", "stableId"])
+    .index("by_stableId", ["stableId"]),
 
   credentials: defineTable({
     recordId: v.id("serviceRecords"),
+    stableId: v.string(), // CSV差分インポート・エクスポート用 UUID v4
     label: v.optional(v.string()),
     loginId: v.optional(v.string()),
     passwordHint: v.optional(v.string()),
@@ -189,7 +193,10 @@ export default defineSchema({
     passwordHintDekIv: v.optional(v.string()),
     order: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index("by_recordId", ["recordId"]),
+  })
+    .index("by_recordId", ["recordId"])
+    .index("by_recordId_stableId", ["recordId", "stableId"])
+    .index("by_stableId", ["stableId"]),
 
   recordEditingSessions: defineTable({
     recordId: v.id("serviceRecords"),

@@ -76,6 +76,7 @@ describe("2.2.1 閲覧権限（ownerType）の境界値テスト (Convex版)", (
 
       // Aが個人レコードを作成
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -89,6 +90,7 @@ describe("2.2.1 閲覧権限（ownerType）の境界値テスト (Convex版)", (
 
       // Aが家族共有レコードを作成
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -406,6 +408,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
 
       // User A personal record
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId: family1Id,
@@ -419,6 +422,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
 
       // User B shared record where only B is admin
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_b",
         accountId: userBId,
         familyId: family1Id,
@@ -474,6 +478,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -547,6 +552,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       sharedRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -608,6 +614,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       r1Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -620,6 +627,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       r2Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -738,6 +746,7 @@ describe("Drive型ACLモデルのCRUDと共有機能テスト", () => {
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -859,6 +868,7 @@ describe("件数境界値テスト", () => {
         updatedAt: Date.now(),
       });
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_order",
         accountId,
         familyId,
@@ -943,6 +953,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Aの個人レコード
       personalRecAId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "A Personal Record",
         userId: "user_export_a",
         accountId: userAId,
@@ -954,6 +965,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Aが管理者の家族共有レコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Shared Admin A Record",
         userId: "user_export_a",
         accountId: userAId,
@@ -967,6 +979,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Bが管理者の家族共有レコード（Aは管理者ではない）
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Shared Admin B Record",
         userId: "user_export_b",
         accountId: userBId,
@@ -980,6 +993,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
 
       // Bの個人レコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "B Personal Record",
         userId: "user_export_b",
         accountId: userBId,
@@ -992,6 +1006,7 @@ describe("2.2.8 CSVエクスポート（fetchRecordsForExport）の権限・整�
       // Aの個人レコードにクレデンシャルを追加
       await ctx.db.insert("credentials", {
         recordId: personalRecAId,
+        stableId: crypto.randomUUID(),
         label: "Main Login",
         loginId: "a_login_id",
         passwordHint: "hint_text",
@@ -1103,6 +1118,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1187,6 +1203,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1241,6 +1258,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
         updatedAt: now,
       });
       const recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "cleanup_user",
         accountId,
         familyId,
@@ -1310,6 +1328,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       recordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1426,6 +1445,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       // チャンクサイズ（64件）を超える 70 件のレコードと各クレデンシャルを一括投入
       for (let i = 0; i < 70; i++) {
         const recId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_chunk_a",
           accountId: userAId,
           familyId,
@@ -1440,6 +1460,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId: recId,
+          stableId: crypto.randomUUID(),
           label: `Label ${i}`,
           loginId: `user${i}@example.com`,
           passwordHint: `secret-hint-${i}`,
@@ -1507,6 +1528,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
       for (let i = 0; i < 5; i++) {
         const recordId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_limit_a",
           accountId: userAId,
           familyId,
@@ -1521,6 +1543,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId,
+          stableId: crypto.randomUUID(),
           label: `Limit Credential ${i}`,
           updatedAt: Date.now() + i,
         });
@@ -1570,6 +1593,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
       for (let i = 0; i < 5; i++) {
         const recId = await ctx.db.insert("serviceRecords", {
+          stableId: crypto.randomUUID(),
           userId: "user_paginated_a",
           accountId: userAId,
           familyId,
@@ -1584,6 +1608,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
 
         await ctx.db.insert("credentials", {
           recordId: recId,
+          stableId: crypto.randomUUID(),
           label: `Cred ${i}`,
           loginId: `user${i}@example.com`,
           passwordHint: `hint-${i}`,
@@ -1671,6 +1696,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
       });
 
       rec1Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1683,6 +1709,7 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
         updatedAt: Date.now(),
       });
       rec2Id = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         userId: "user_a",
         accountId: userAId,
         familyId,
@@ -1745,5 +1772,337 @@ describe("同時編集検知と楽観的ロック競合防止（FR-REC-15）", (
         targetAccountId: viewerId,
       }),
     ).rejects.toThrow("Access denied");
+  });
+});
+
+describe("2.2.14 CSV差分インポート・安定ID（stableId）検証", () => {
+  it("getRecordsForDiffImport: 差分突合用に平文メタデータのみを取得し、暗号文は除外されること", async () => {
+    const t = convexTest(schema, modules);
+    const stableUUID = "11111111-2222-3333-4444-555555555555";
+
+    await t.run(async (ctx) => {
+      const familyId = await ctx.db.insert("families", {
+        name: "Diff Family",
+        updatedAt: Date.now(),
+      });
+      const userId = await ctx.db.insert("users", {
+        familyRole: "admin",
+        userId: "diff_user",
+        email: "diff@example.com",
+        familyId,
+        updatedAt: Date.now(),
+      });
+      const recId = await ctx.db.insert("serviceRecords", {
+        title: "Diff Target Service",
+        url: "https://diff.example.com",
+        memo: "Original Memo",
+        userId: "diff_user",
+        accountId: userId,
+        familyId,
+        stableId: stableUUID,
+        tags: ["work"],
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("credentials", {
+        recordId: recId,
+        stableId: "cred-uuid-1",
+        label: "Main",
+        loginId: "admin@diff.com",
+        passwordHint: "encrypted_secret",
+        passwordHintIv: "iv_secret",
+        updatedAt: Date.now(),
+      });
+    });
+
+    const user = t.withIdentity({
+      subject: "diff_user",
+      email: "diff@example.com",
+    });
+
+    const records = await user.query(api.records.getRecordsForDiffImport, {});
+    expect(records.length).toBe(1);
+    const r = records[0];
+    expect(r.stableId).toBe(stableUUID);
+    expect(r.title).toBe("Diff Target Service");
+    expect(r.url).toBe("https://diff.example.com");
+    expect(r.memo).toBe("Original Memo");
+    expect(r.credentials.length).toBe(1);
+    expect(r.credentials[0].stableId).toBe("cred-uuid-1");
+    expect(r.credentials[0].label).toBe("Main");
+    expect(r.credentials[0].hasPasswordHint).toBe(true);
+
+    // 暗号文・IVが返却されていないこと（patterns.md #15 最小権限原則）
+    expect(
+      (r.credentials[0] as Record<string, unknown>).passwordHint,
+    ).toBeUndefined();
+    expect(
+      (r.credentials[0] as Record<string, unknown>).passwordHintIv,
+    ).toBeUndefined();
+  });
+
+  it("applyImportDiff: 新規作成と差分更新が同一トランザクションで安全に反映されること", async () => {
+    const t = convexTest(schema, modules);
+    const existingStableId = "22222222-3333-4444-5555-666666666666";
+    const existingCredStableId = "cred-existing-uuid-1";
+
+    let familyId!: Id<"families">;
+    let existingRecId!: Id<"serviceRecords">;
+
+    await t.run(async (ctx) => {
+      familyId = await ctx.db.insert("families", {
+        name: "ApplyDiff Family",
+        updatedAt: Date.now(),
+      });
+      const userId = await ctx.db.insert("users", {
+        familyRole: "admin",
+        userId: "apply_user",
+        email: "apply@example.com",
+        familyId,
+        updatedAt: Date.now(),
+      });
+      existingRecId = await ctx.db.insert("serviceRecords", {
+        title: "Before Update Service",
+        url: "https://before.com",
+        memo: "Keep this memo",
+        userId: "apply_user",
+        accountId: userId,
+        familyId,
+        stableId: existingStableId,
+        tags: ["old-tag"],
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("credentials", {
+        recordId: existingRecId,
+        stableId: existingCredStableId,
+        label: "Old Label",
+        loginId: "old@example.com",
+        passwordHint: "keep_this_hint",
+        passwordHintIv: "keep_this_iv",
+        updatedAt: Date.now(),
+      });
+    });
+
+    const user = t.withIdentity({
+      subject: "apply_user",
+      email: "apply@example.com",
+    });
+
+    // 1件新規(CREATE) + 1件更新(UPDATE)
+    const result = await user.mutation(api.records.applyImportDiff, {
+      creates: [
+        {
+          title: "New Created Service",
+          url: "https://new.com",
+          memo: "New memo",
+          tags: ["new-tag"],
+          credentials: [
+            {
+              label: "New Cred",
+              loginId: "newuser@example.com",
+            },
+          ],
+        },
+      ],
+      updates: [
+        {
+          stableId: existingStableId,
+          title: "After Update Service", // タイトル変更
+          // url, memo は undefined（既存値維持）
+          credentials: [
+            {
+              stableId: existingCredStableId,
+              label: "Updated Label", // ラベル更新（loginId, hintは維持）
+            },
+            {
+              // stableId なし → 新規クレデンシャル追加
+              label: "Added Sub Account",
+              loginId: "sub@example.com",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.createdCount).toBe(1);
+    expect(result.updatedCount).toBe(1);
+
+    // 反映後のDB状態を検証
+    await t.run(async (ctx) => {
+      // 1. 新規レコードの検証
+      const newRecords = await ctx.db
+        .query("serviceRecords")
+        .withIndex("by_family_stableId", (q) => q.eq("familyId", familyId))
+        .collect();
+      expect(newRecords.length).toBe(2);
+
+      const created = newRecords.find((r) => r.title === "New Created Service");
+      expect(created).toBeDefined();
+      expect(created?.stableId).toBeDefined();
+
+      // 2. 更新レコードの検証
+      const updated = await ctx.db.get(existingRecId);
+      expect(updated?.title).toBe("After Update Service");
+      // 未指定の項目が維持されていること（空セル上書き破壊の防止）
+      expect(updated?.url).toBe("https://before.com");
+      expect(updated?.memo).toBe("Keep this memo");
+
+      // クレデンシャルの検証
+      const creds = await ctx.db
+        .query("credentials")
+        .withIndex("by_recordId", (q) => q.eq("recordId", existingRecId))
+        .collect();
+      expect(creds.length).toBe(2);
+
+      const updatedCred = creds.find(
+        (c) => c.stableId === existingCredStableId,
+      );
+      expect(updatedCred?.label).toBe("Updated Label");
+      expect(updatedCred?.loginId).toBe("old@example.com"); // 維持
+      expect(updatedCred?.passwordHint).toBe("keep_this_hint"); // 維持
+
+      const addedCred = creds.find((c) => c.label === "Added Sub Account");
+      expect(addedCred).toBeDefined();
+      expect(addedCred?.stableId).toBeDefined();
+    });
+  });
+
+  it("applyImportDiff: 存在しないstableIdを指定した場合はエラーとなり全体がロールバックされること", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      const familyId = await ctx.db.insert("families", {
+        name: "Rollback Family",
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("users", {
+        familyRole: "admin",
+        userId: "rollback_user",
+        email: "rollback@example.com",
+        familyId,
+        updatedAt: Date.now(),
+      });
+    });
+
+    const user = t.withIdentity({
+      subject: "rollback_user",
+      email: "rollback@example.com",
+    });
+
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [],
+        updates: [
+          {
+            stableId: "non-existent-uuid",
+            title: "Invalid",
+            credentials: [],
+          },
+        ],
+      }),
+    ).rejects.toThrow("更新対象のレコードが見つかりません");
+  });
+
+  it("applyImportDiff: クレデンシャル数上限超過、不正クレデンシャルstableId、無効な管理者メールでエラーとなること", async () => {
+    const t = convexTest(schema, modules);
+
+    let recStableId = "";
+    let userAccountId!: Id<"users">;
+    let familyId!: Id<"families">;
+    await t.run(async (ctx) => {
+      familyId = await ctx.db.insert("families", {
+        name: "Val Family",
+        updatedAt: Date.now(),
+      });
+      userAccountId = await ctx.db.insert("users", {
+        familyRole: "admin",
+        userId: "val_user",
+        email: "val@example.com",
+        familyId,
+        updatedAt: Date.now(),
+      });
+      recStableId = crypto.randomUUID();
+      await ctx.db.insert("serviceRecords", {
+        title: "Val Service",
+        userId: "val_user",
+        accountId: userAccountId,
+        familyId,
+        sortKey: "val",
+        ownerType: "family",
+        ownerFamilyId: familyId,
+        admins: [userAccountId],
+        tags: [],
+        stableId: recStableId,
+        revision: 0,
+        updatedAt: Date.now(),
+      });
+    });
+
+    const user = t.withIdentity({
+      subject: "val_user",
+      email: "val@example.com",
+    });
+
+    // 1. クレデンシャル数上限 (10件超) エラー
+    const tooManyCreds = Array.from({ length: 11 }, (_, i) => ({
+      label: `Account ${i}`,
+    }));
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [
+          {
+            title: "Too Many Creds",
+            ownerType: "user",
+            tags: [],
+            credentials: tooManyCreds,
+          },
+        ],
+        updates: [],
+      }),
+    ).rejects.toThrow("アカウント情報は最大10件まで登録できます");
+
+    // 2. 存在しないクレデンシャル stableId エラー
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [],
+        updates: [
+          {
+            stableId: recStableId,
+            title: "Updated",
+            credentials: [
+              {
+                stableId: "invalid-cred-uuid",
+                label: "Not Found Cred",
+              },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow("更新対象のクレデンシャルが見つかりません");
+
+    // 3. 家族内に存在しない管理者メールアドレスが指定された場合、エラーとせずスキップされインポート実行者がadminsに登録される
+    const resultWithStrangerAdmin = await user.mutation(
+      api.records.applyImportDiff,
+      {
+        creates: [
+          {
+            title: "Stranger Admin Fallback",
+            ownerType: "family",
+            adminEmails: ["stranger@example.com"],
+            tags: [],
+            credentials: [],
+          },
+        ],
+        updates: [],
+      },
+    );
+    expect(resultWithStrangerAdmin.createdCount).toBe(1);
+
+    const createdWithStranger = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("serviceRecords")
+        .filter((q) => q.eq(q.field("title"), "Stranger Admin Fallback"))
+        .first();
+    });
+    expect(createdWithStranger?.admins).toEqual([userAccountId]);
   });
 });

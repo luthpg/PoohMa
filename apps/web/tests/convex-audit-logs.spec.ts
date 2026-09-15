@@ -142,6 +142,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
 
       // 個人レコード作成
       personalRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "A's Private Bank",
         sortKey: computeSortKey("A's Private Bank"),
         userId: "user_a",
@@ -155,6 +156,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
 
       // 家族共有レコード作成
       sharedRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Family Wi-Fi",
         sortKey: computeSortKey("Family Wi-Fi"),
         userId: "user_a",
@@ -251,6 +253,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
       });
 
       sharedRecordId = await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Shared Account",
         sortKey: computeSortKey("Shared Account"),
         userId: "user_to_be_deleted",
@@ -322,6 +325,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
 
       // 181日前の古いレコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Old Untouched Record",
         sortKey: computeSortKey("Old Untouched Record"),
         userId: "user_stale",
@@ -335,6 +339,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
 
       // 10日前の新しいレコード
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Fresh Record",
         sortKey: computeSortKey("Fresh Record"),
         userId: "user_stale",
@@ -348,6 +353,7 @@ describe("監査ログ (Audit Log) & 最終更新者機能の統合テスト", (
 
       // サンプルレコード（抽出対象外）
       await ctx.db.insert("serviceRecords", {
+        stableId: crypto.randomUUID(),
         title: "Sample Old Record",
         sortKey: computeSortKey("Sample Old Record"),
         userId: "user_stale",

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sendEmailReq } from "../convex/actions";
 
 const sendMock = vi.fn();
 
@@ -29,8 +30,6 @@ describe("convex/actions: sendEmailReq", () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_MAIL_FROM;
 
-    const { sendEmailReq } = await import("../convex/actions");
-
     const result = await sendEmailReq({
       email: "test@example.com",
       subject: "テスト件名",
@@ -47,8 +46,6 @@ describe("convex/actions: sendEmailReq", () => {
     process.env.RESEND_API_KEY = "test_resend_api_key";
     process.env.RESEND_MAIL_FROM = "noreply@example.com";
     sendMock.mockResolvedValue({ data: { id: "msg_123" }, error: null });
-
-    const { sendEmailReq } = await import("../convex/actions");
 
     const result = await sendEmailReq({
       email: "test@example.com",
@@ -75,8 +72,6 @@ describe("convex/actions: sendEmailReq", () => {
     process.env.RESEND_API_KEY = "test_resend_api_key";
     process.env.RESEND_MAIL_FROM = "noreply@example.com";
     sendMock.mockResolvedValue({ data: { id: "msg_456" }, error: null });
-
-    const { sendEmailReq } = await import("../convex/actions");
 
     const result = await sendEmailReq({
       email: "user1@example.com, user2@example.com",
@@ -105,8 +100,6 @@ describe("convex/actions: sendEmailReq", () => {
       data: null,
       error: { message: "Rate limit exceeded" },
     });
-
-    const { sendEmailReq } = await import("../convex/actions");
 
     const result = await sendEmailReq({
       email: "test@example.com",
