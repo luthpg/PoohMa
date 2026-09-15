@@ -2113,27 +2113,51 @@ export const applyImportDiff = familyBoundMutation({
       }
     }
 
+    // 管理者メールアドレスの検証＆解決ヘルパー
+    const resolveFamilyAdmins = (adminEmails?: string[]): Id<"users">[] => {
+      const resolvedSet = new Set<Id<"users">>();
+      // インポート実行者を必ず管理者に追加
+      resolvedSet.add(user._id);
+
+      if (adminEmails && adminEmails.length > 0) {
+        for (const rawEmail of adminEmails) {
+          const email = rawEmail.trim();
+          if (!email) continue;
+          const accounts = emailToAccountMap.get(email.toLowerCase());
+          if (!accounts || accounts.length === 0) {
+            throw new Error(
+              `家族内に存在しないメンバーのメールアドレスが管理者に指定されています: ${email}`,
+            );
+          }
+          for (const accId of accounts) {
+            resolvedSet.add(accId);
+          }
+        }
+      }
+      return Array.from(resolvedSet);
+    };
+
     const now = Date.now();
     let createdCount = 0;
     let updatedCount = 0;
 
     // 1. CREATE の処理
     for (const item of args.creates) {
+      if (item.credentials.length > MAX_CREDENTIALS_PER_RECORD) {
+        throw new Error(
+          `アカウント情報は最大${MAX_CREDENTIALS_PER_RECORD}件まで登録できます (${item.title})`,
+        );
+      }
+
       const isFamily = item.ownerType === "family";
       const sortKey = computeSortKey({
         titleReading: item.titleReading,
         title: item.title,
       });
 
-      const resolvedAdmins: Id<"users">[] = [];
-      if (isFamily && item.adminEmails && item.adminEmails.length > 0) {
-        for (const email of item.adminEmails) {
-          const accounts = emailToAccountMap.get(email.toLowerCase());
-          if (accounts && accounts.length > 0) {
-            resolvedAdmins.push(accounts[0]);
-          }
-        }
-      }
+      const resolvedAdmins: Id<"users">[] = isFamily
+        ? resolveFamilyAdmins(item.adminEmails)
+        : [];
 
       const recordId = await ctx.db.insert("serviceRecords", {
         title: item.title,
@@ -2192,7 +2216,22 @@ export const applyImportDiff = familyBoundMutation({
       // 編集権限の確認
       requireAdminAccess(user, record);
 
+      const existingCreds = await getCredentialsForRecord(ctx, record._id);
+      const credByStableId = new Map(
+        existingCreds
+          .filter((c) => !!c.stableId)
+          .map((c) => [c.stableId as string, c]),
+      );
+
+      const newCredsCount = item.credentials.filter((c) => !c.stableId).length;
+      if (existingCreds.length + newCredsCount > MAX_CREDENTIALS_PER_RECORD) {
+        throw new Error(
+          `アカウント情報は最大${MAX_CREDENTIALS_PER_RECORD}件まで登録できます (${record.title})`,
+        );
+      }
+
       const patchData: Partial<Doc<"serviceRecords">> = {
+        revision: (record.revision ?? 0) + 1,
         updatedAt: now,
         updatedByAccountId: user._id,
       };
@@ -2215,39 +2254,35 @@ export const applyImportDiff = familyBoundMutation({
       if (item.memo !== undefined) patchData.memo = item.memo;
       if (item.tags !== undefined) patchData.tags = item.tags;
 
+      const willBeFamily =
+        item.ownerType === "family" ||
+        (item.ownerType === undefined && record.ownerType === "family");
+
       if (item.ownerType !== undefined) {
         patchData.ownerType = item.ownerType;
         patchData.ownerFamilyId =
           item.ownerType === "family" ? user.familyId : undefined;
-      }
-      if (item.adminEmails !== undefined) {
-        const resolvedAdmins: Id<"users">[] = [];
-        for (const email of item.adminEmails) {
-          const accounts = emailToAccountMap.get(email.toLowerCase());
-          if (accounts && accounts.length > 0) {
-            resolvedAdmins.push(accounts[0]);
-          }
+        if (item.ownerType === "user") {
+          patchData.admins = [];
         }
-        patchData.admins = resolvedAdmins;
+      }
+
+      if (item.adminEmails !== undefined && willBeFamily) {
+        patchData.admins = resolveFamilyAdmins(item.adminEmails);
       }
 
       await ctx.db.patch(record._id, patchData);
 
       // クレデンシャルの更新
-      const existingCreds = await getCredentialsForRecord(ctx, record._id);
-      const credByStableId = new Map(
-        existingCreds
-          .filter((c) => !!c.stableId)
-          .map((c) => [c.stableId as string, c]),
-      );
-
       for (let j = 0; j < item.credentials.length; j++) {
         const credInput = item.credentials[j];
-        const targetCred = credInput.stableId
-          ? credByStableId.get(credInput.stableId)
-          : undefined;
-
-        if (targetCred) {
+        if (credInput.stableId) {
+          const targetCred = credByStableId.get(credInput.stableId);
+          if (!targetCred) {
+            throw new Error(
+              `更新対象のクレデンシャルが見つかりません (stableId: ${credInput.stableId})`,
+            );
+          }
           // 既存クレデンシャルの更新
           const credPatch: Partial<Doc<"credentials">> = {
             updatedAt: now,
@@ -2263,7 +2298,7 @@ export const applyImportDiff = familyBoundMutation({
             credPatch.passwordHintDekIv = credInput.passwordHintDekIv;
           }
           await ctx.db.patch(targetCred._id, credPatch);
-        } else if (!credInput.stableId) {
+        } else {
           // 新規クレデンシャルの追加
           await ctx.db.insert("credentials", {
             recordId: record._id,

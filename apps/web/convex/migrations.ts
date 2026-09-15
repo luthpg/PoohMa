@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 /**
  * 既存の serviceRecords および credentials テーブルに stableId (UUID v4) をバックフィルするワンショットマイグレーション。
@@ -6,7 +6,7 @@ import { mutation } from "./_generated/server";
  * 実行方法 (CLI):
  * npx convex run migrations:backfillStableIds
  */
-export const backfillStableIds = mutation({
+export const backfillStableIds = internalMutation({
   args: {},
   handler: async (ctx) => {
     // 1. serviceRecords のバックフィル

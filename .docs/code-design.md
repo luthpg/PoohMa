@@ -830,7 +830,7 @@ DEKは credentials.passwordHintDekEncrypted / passwordHintDekIv として保存�
 | getRecordDetail | Query | authenticated | 詳細取得（rls.tsによるrequireContentAccess制御）。adminUsersをファミリー管理者＋admins配列から動的マージして返却。取得時にrecordAccessLogへVIEWEDを記録し、lastViewedAt/Byを更新 |
 | getAvailableTags | Query | authenticated | 閲覧可能レコードから使用中タグ一覧を抽出（by\_family\_sortKey経由） |
 | getOwnedRecords | Query | authenticated | 自分が管理可能な全レコード取得（個人レコード＋自分が管理者の共有レコード、CSVエクスポート用） |
-| fetchRecordsForExport | Mutation | authenticated | CSVエクスポート用レコード一括取得（サーバー側でCSVエクスポート通知メールもスケジュール送信） |
+| fetchRecordsForExport | Mutation | authenticated | CSVエクスポート用レコード一括取得（stableId含む。サーバー側でCSVエクスポート通知メールもスケジュール送信） |
 | shareRecord | Mutation | familyBound | ワンタップで個人レコードを家族共有レコード（ownerType: "family"）に昇格。共有者が閲覧者の場合はadminsに追加、ファミリー管理者の場合は空配列（共有変更通知メール送信） |
 | unshareRecord | Mutation | familyBound | ワンタップで共有レコードを個人レコード（ownerType: "user", admins: []）に戻す（管理者限定・共有変更通知メール送信） |
 | addRecordAdmin / removeRecordAdmin | Mutation | recordAdmin | 共有レコードの個別管理者（一般メンバー）の追加・解除（管理者限定・管理者変更通知メール送信。ファミリー管理者の冗長追加は防止） |
@@ -839,7 +839,6 @@ DEKは credentials.passwordHintDekEncrypted / passwordHintDekIv として保存�
 | previewCsvImport | Query/Action | familyBound | インポート予定のCSV行と既存データ（URL＋タイトルで突合）を比較し、行ごとに新規／上書き／スキップを判定して返す（FR-CSV-07、9.7参照） |
 | getRecordsForDiffImport | Query | authenticated | CSV差分インポート突合用にアクセス可能なレコード一覧を軽量取得（暗号化フィールドは除外、最小権限原則） |
 | applyImportDiff | Mutation | familyBound | CSV差分プレビューで承認された新規登録・更新を一括反映（家族境界・管理者認可検証、非空フィールドのみ更新、監査ログ記録） |
-| fetchRecordsForExport | Query | familyBound | CSVエクスポート用に自分がオーナーである全レコードおよびクレデンシャル（stableId含む）を取得 |
 | createRecord | Mutation | familyBound | レコード新規作成（zodによるサーバー再検証、sortKey自動算出、ownerType: "user" \| "family"、credentials最大10件チェック、stableId自動生成、revision: 0初期化） |
 | updateRecord | Mutation | familyBound | レコード更新（requireAdminAccessチェックにより閲覧専用メンバーによる更新を防止、sortKey再算出、共有解除時は管理者権限を要求、revisionによる楽観的ロック競合検証、forceフラグによる強制上書き、完了時セッション自動削除） |
 | deleteRecord / deleteRecords | Mutation | familyBound | 単体／一括削除（requireAdminAccessチェック、非管理者の共有レコード削除を防止） |

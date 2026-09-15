@@ -1791,7 +1791,7 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
     });
 
     // backfillStableIds を実行
-    const result = await t.mutation(api.migrations.backfillStableIds, {});
+    const result = await t.mutation(internal.migrations.backfillStableIds, {});
     expect(result.recordsUpdated).toBe(1);
     expect(result.credentialsUpdated).toBe(1);
 
@@ -2032,5 +2032,97 @@ describe("2.2.14 CSV差分インポート・安定ID（stableId）・マイグ�
         ],
       }),
     ).rejects.toThrow("更新対象のレコードが見つかりません");
+  });
+
+  it("applyImportDiff: クレデンシャル数上限超過、不正クレデンシャルstableId、無効な管理者メールでエラーとなること", async () => {
+    const t = convexTest(schema, modules);
+
+    let recStableId = "";
+    await t.run(async (ctx) => {
+      const familyId = await ctx.db.insert("families", {
+        name: "Val Family",
+        updatedAt: Date.now(),
+      });
+      const userId = await ctx.db.insert("users", {
+        familyRole: "admin",
+        userId: "val_user",
+        email: "val@example.com",
+        familyId,
+        updatedAt: Date.now(),
+      });
+      recStableId = crypto.randomUUID();
+      await ctx.db.insert("serviceRecords", {
+        title: "Val Service",
+        userId: "val_user",
+        accountId: userId,
+        familyId,
+        sortKey: "val",
+        ownerType: "family",
+        ownerFamilyId: familyId,
+        admins: [userId],
+        tags: [],
+        stableId: recStableId,
+        revision: 0,
+        updatedAt: Date.now(),
+      });
+    });
+
+    const user = t.withIdentity({
+      subject: "val_user",
+      email: "val@example.com",
+    });
+
+    // 1. クレデンシャル数上限 (10件超) エラー
+    const tooManyCreds = Array.from({ length: 11 }, (_, i) => ({
+      label: `Account ${i}`,
+    }));
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [
+          {
+            title: "Too Many Creds",
+            ownerType: "user",
+            tags: [],
+            credentials: tooManyCreds,
+          },
+        ],
+        updates: [],
+      }),
+    ).rejects.toThrow("アカウント情報は最大10件まで登録できます");
+
+    // 2. 存在しないクレデンシャル stableId エラー
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [],
+        updates: [
+          {
+            stableId: recStableId,
+            title: "Updated",
+            credentials: [
+              {
+                stableId: "invalid-cred-uuid",
+                label: "Not Found Cred",
+              },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow("更新対象のクレデンシャルが見つかりません");
+
+    // 3. 家族内に存在しない管理者メールアドレス エラー
+    await expect(
+      user.mutation(api.records.applyImportDiff, {
+        creates: [
+          {
+            title: "Invalid Admin",
+            ownerType: "family",
+            adminEmails: ["stranger@example.com"],
+            tags: [],
+            credentials: [],
+          },
+        ],
+        updates: [],
+      }),
+    ).rejects.toThrow("家族内に存在しないメンバーのメールアドレス");
   });
 });

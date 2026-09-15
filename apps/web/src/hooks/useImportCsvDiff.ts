@@ -158,7 +158,7 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
 
         // 必須列の検証
         const headers = parseResult.meta.fields || [];
-        if (!headers.some((h) => h.toLowerCase() === "title")) {
+        if (!headers.includes("Title")) {
           toast.error(
             "必須列「Title」が見つかりません。ヘッダー名を確認してください。",
             { id: IMPORT_TOAST_ID },
@@ -601,20 +601,28 @@ export function useImportCsvDiff(options?: UseImportCsvDiffOptions) {
                 }
               }
 
+              const trimmedTags = (row.Tags || "").trim();
+              const parsedTags = trimmedTags
+                ? trimmedTags
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                : undefined;
               const tags =
-                row.Tags || ""
-                  ? (row.Tags || "")
-                      .split(",")
-                      .map((t) => t.trim())
-                      .filter(Boolean)
-                  : undefined;
+                parsedTags && parsedTags.length > 0 ? parsedTags : undefined;
+
+              const trimmedAdmins = (row.Admins || "").trim();
+              const parsedAdmins = trimmedAdmins
+                ? trimmedAdmins
+                    .split(",")
+                    .map((a) => a.trim().toLowerCase())
+                    .filter(Boolean)
+                : undefined;
               const admins =
-                row.Admins || ""
-                  ? (row.Admins || "")
-                      .split(",")
-                      .map((a) => a.trim().toLowerCase())
-                      .filter(Boolean)
+                parsedAdmins && parsedAdmins.length > 0
+                  ? parsedAdmins
                   : undefined;
+
               const ownerTypeRaw = (row.OwnerType || "").trim().toLowerCase();
               const ownerType =
                 ownerTypeRaw === "family" || ownerTypeRaw === "user"

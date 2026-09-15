@@ -47,7 +47,10 @@ export function CsvImportDropZone({
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (file.name.endsWith(".csv") || file.type === "text/csv") {
+      if (
+        file.name.toLowerCase().endsWith(".csv") ||
+        file.type === "text/csv"
+      ) {
         onFileSelected(file);
       }
     }
@@ -66,7 +69,7 @@ export function CsvImportDropZone({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* 隠しファイルインプット */}
       <input
         ref={fileInputRef}
@@ -77,6 +80,17 @@ export function CsvImportDropZone({
         data-testid="csv-bulk-file-input"
         onChange={handleFileChange}
       />
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onOpenHelp}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-muted"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          書き方の説明・サンプルを見る
+        </button>
+      </div>
 
       {/* ドロップゾーン（ネイティブ label によりクリックでファイル選択が自動起動） */}
       <label
@@ -127,23 +141,11 @@ export function CsvImportDropZone({
               </JpText>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <div className="pt-1">
               <span className="inline-flex items-center justify-center rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs px-4 py-2 shadow-sm pointer-events-none">
                 <FileSpreadsheet className="h-4 w-4 mr-1.5" />
                 ファイルを選択する
               </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onOpenHelp();
-                }}
-                className="inline-flex items-center justify-center rounded-md border border-border/80 bg-background hover:bg-accent text-xs px-3 py-2 cursor-pointer transition-colors"
-              >
-                <HelpCircle className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                書き方の説明・サンプル
-              </button>
             </div>
 
             <JpText
